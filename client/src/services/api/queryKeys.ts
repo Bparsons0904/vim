@@ -11,17 +11,6 @@ export const queryKeys = {
   userProfile: () => [...queryKeys.users(), 'profile'] as const,
   userSettings: () => [...queryKeys.users(), 'settings'] as const,
 
-  // Story-related queries  
-  stories: () => [...queryKeys.all(), 'stories'] as const,
-  story: (id: string) => [...queryKeys.stories(), 'story', id] as const,
-  storyList: (filters?: Record<string, unknown>) => [...queryKeys.stories(), 'list', filters] as const,
-  storyParticipants: (storyId: string) => [...queryKeys.stories(), 'participants', storyId] as const,
-  storyMembers: (storyId: string) => [...queryKeys.stories(), 'members', storyId] as const,
-  createFormData: () => [...queryKeys.stories(), 'createFormData'] as const,
-  
-  // Invite-related queries
-  knownContacts: () => [...queryKeys.all(), 'invites', 'knownContacts'] as const,
-
   // Session-related queries
   sessions: () => [...queryKeys.all(), 'sessions'] as const,
   session: (id: string) => [...queryKeys.sessions(), 'session', id] as const,
@@ -49,12 +38,6 @@ export const invalidationHelpers = {
   
   // Invalidate specific user data
   invalidateUser: (id?: string) => queryKeys.user(id),
-  
-  // Invalidate all story-related queries
-  invalidateStories: () => queryKeys.stories(),
-  
-  // Invalidate specific story data
-  invalidateStory: (id: string) => queryKeys.story(id),
   
   // Invalidate all API queries
   invalidateAll: () => queryKeys.all(),

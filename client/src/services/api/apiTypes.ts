@@ -17,31 +17,6 @@ export interface BaseApiResponse {
   message: string;
 }
 
-export interface StoryApiResponse extends BaseApiResponse {
-  story: import('../../types/Story').Story;
-}
-
-export interface StoriesApiResponse extends BaseApiResponse {
-  stories: import('../../types/Story').Story[];
-  invites: import('../../types/Story').StoryInvite[];
-}
-
-export interface CreateFormDataApiResponse extends BaseApiResponse {
-  data: {
-    genres: import('../../types/Genre').Genre[];
-    orderTypes: import('../../types/StoryOrderType').StoryOrderType[];
-  };
-}
-
-export interface KnownContactsApiResponse extends BaseApiResponse {
-  users: import('../../types/User').User[];
-}
-
-// Shared request types for common operations
-export interface ContentRequest {
-  content: string;
-}
-
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: {
