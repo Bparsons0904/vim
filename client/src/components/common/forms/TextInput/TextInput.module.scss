@@ -1,0 +1,84 @@
+.textInput {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: $spacing-md;
+  width: 100%;
+  max-width: 400px;
+}
+
+.label {
+  margin-bottom: $spacing-xs;
+  cursor: pointer;
+}
+
+.labelText {
+  display: inline-block;
+  font-weight: $font-weight-medium;
+}
+
+.inputWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.inputContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: $spacing-sm;
+  background-color: $bg-surface;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-md;
+  transition:
+    border-color $transition-fast $transition-timing-default,
+    box-shadow $transition-fast $transition-timing-default;
+
+  &:hover {
+    border-color: $border-strong;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $border-focus;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.2);
+  }
+
+  &.passwordInput {
+    padding-right: 2.5rem;
+  }
+
+  &.inputError {
+    border-color: $color-error-500;
+    background-color: rgba($color-error-50, 0.5);
+
+    &:focus {
+      border-color: $color-error-500;
+      box-shadow: 0 0 0 3px rgba($color-error-500, 0.2);
+    }
+  }
+}
+
+
+.error {
+  color: $color-error-700;
+  font-size: $font-size-sm;
+  margin-top: $spacing-xs;
+  display: block;
+  animation: slideInError 0.2s ease-out;
+}
+
+@keyframes slideInError {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

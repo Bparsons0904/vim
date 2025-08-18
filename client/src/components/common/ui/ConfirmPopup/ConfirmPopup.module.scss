@@ -1,0 +1,83 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/mixins";
+
+.confirmPopup {
+  text-align: center;
+  padding: $spacing-md 0;
+}
+
+.iconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin: 0 auto $spacing-lg;
+  
+  &.primary {
+    background-color: $bg-primary-subtle;
+    color: $color-primary-600;
+  }
+  
+  &.secondary {
+    background-color: $bg-secondary-subtle;
+    color: $color-secondary-600;
+  }
+  
+  &.danger {
+    background-color: $bg-error-subtle;
+    color: $color-error-600;
+  }
+  
+  &.warning {
+    background-color: $bg-warning-subtle;
+    color: $color-warning-600;
+  }
+  
+  &.tertiary {
+    background-color: $bg-muted;
+    color: $text-muted;
+  }
+  
+  &.gradient {
+    background: $bg-primary-gradient;
+    color: $color-white;
+  }
+  
+  &.ghost {
+    background-color: transparent;
+    border: 2px solid $border-default;
+    color: $text-default;
+  }
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+}
+
+.content {
+  margin-bottom: $spacing-xl;
+}
+
+.description {
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  color: $text-default;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-md;
+  justify-content: center;
+  
+  @media (max-width: $breakpoint-sm) {
+    flex-direction: column-reverse;
+    
+    button {
+      width: 100%;
+    }
+  }
+}

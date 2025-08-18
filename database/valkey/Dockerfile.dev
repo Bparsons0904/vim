@@ -1,0 +1,28 @@
+# Development Dockerfile for Valkey
+FROM valkey/valkey:7.2-alpine
+
+# Create valkey user and group if they don't exist
+RUN addgroup -g 999 valkey && adduser -D -s /bin/sh -u 999 -G valkey valkey || true
+
+# Create necessary directories
+RUN mkdir -p /data /var/log/valkey && \
+    chown -R valkey:valkey /data /var/log/valkey
+
+# Copy custom configuration
+COPY valkey.conf /usr/local/etc/valkey/valkey.conf
+
+# Set proper permissions for config
+RUN chown valkey:valkey /usr/local/etc/valkey/valkey.conf
+
+# Health check
+HEALTHCHECK --interval=300s --timeout=3s --start-period=5s --retries=3 \
+  CMD valkey-cli ping || exit 1
+
+# Expose the standard Valkey port
+EXPOSE 6379
+
+# Switch to valkey user
+USER valkey
+
+# Use custom config
+CMD ["valkey-server", "/usr/local/etc/valkey/valkey.conf"]

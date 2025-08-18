@@ -1,0 +1,289 @@
+import { render, screen, fireEvent } from "@solidjs/testing-library";
+import StoryCard from "./StoryCard";
+import { Story } from "./types";
+
+// Mock story data
+const mockActiveStory: Story = {
+  id: "1",
+  title: "The Mystery of Grandma's Attic",
+  groupName: "Johnson Family Stories",
+  participants: [
+    { id: "1", name: "Mom Johnson", initials: "MJ" },
+    { id: "2", name: "Dad Johnson", initials: "DJ" },
+    { id: "3", name: "Lucy Johnson", initials: "LJ" },
+  ],
+  lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+  status: "your-turn",
+  lastContribution: {
+    author: "Mom Johnson",
+    excerpt: "As I climbed the creaky stairs to the attic, I could smell the musty scent of old memories..."
+  }
+};
+
+const mockWaitingStory: Story = {
+  id: "2",
+  title: "College Road Trip Adventures",
+  groupName: "College Friends",
+  participants: [
+    { id: "4", name: "Sarah Miller", initials: "SM" },
+    { id: "5", name: "Kevin Chen", initials: "KC" },
+  ],
+  lastActivity: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+  status: "waiting-for-user",
+  waitingFor: "Kevin",
+  lastContribution: {
+    author: "Sarah Miller",
+    excerpt: "The GPS led us down a winding mountain road that definitely wasn't on any official map..."
+  }
+};
+
+const mockInvitationStory: Story = {
+  id: "3",
+  title: "Haunted Camping Trip",
+  groupName: "High School Reunion Group",
+  participants: [
+    { id: "6", name: "Bob Turner", initials: "BT" },
+    { id: "7", name: "Jessica Lopez", initials: "JL" },
+    { id: "8", name: "Mike Kim", initials: "MK" },
+    { id: "9", name: "Nina Ross", initials: "NR" },
+    { id: "10", name: "Tom Green", initials: "TG" },
+  ],
+  lastActivity: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+  status: "invitation",
+  invitedBy: "Sarah M.",
+  lastContribution: {
+    author: "Bob Turner",
+    excerpt: "The campfire crackled ominously as we settled in for the night..."
+  }
+};
+
+describe("StoryCard", () => {
+  it("renders basic story information", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("The Mystery of Grandma's Attic")).toBeInTheDocument();
+    expect(screen.getByText("Johnson Family Stories")).toBeInTheDocument();
+    expect(screen.getByText(/Last contribution by Mom Johnson:/)).toBeInTheDocument();
+    expect(screen.getByText(/As I climbed the creaky stairs/)).toBeInTheDocument();
+  });
+
+  it("shows correct status badge for your-turn story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText(/Your turn to write/)).toBeInTheDocument();
+  });
+
+  it("shows correct status badge for waiting story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockWaitingStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText(/Waiting for Kevin/)).toBeInTheDocument();
+  });
+
+  it("shows correct status badge for invitation story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText(/Invited by Sarah M./)).toBeInTheDocument();
+  });
+
+  it("displays participant avatars", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("MJ")).toBeInTheDocument();
+    expect(screen.getByText("DJ")).toBeInTheDocument();
+    expect(screen.getByText("LJ")).toBeInTheDocument();
+  });
+
+  it("shows '+X' indicator for more than 4 participants", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("+1")).toBeInTheDocument();
+  });
+
+  it("shows 'Continue Story' button for your-turn story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("Continue Story")).toBeInTheDocument();
+  });
+
+  it("shows 'Continue Story' button for waiting story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockWaitingStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("Continue Story")).toBeInTheDocument();
+  });
+
+  it("shows 'Accept' and 'Decline' buttons for invitation story", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("Accept")).toBeInTheDocument();
+    expect(screen.getByText("Decline")).toBeInTheDocument();
+  });
+
+  it("calls onAction with correct parameters when Continue Story is clicked", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    const continueButton = screen.getByText("Continue Story");
+    fireEvent.click(continueButton);
+
+    expect(mockAction).toHaveBeenCalledWith("1", "continue");
+  });
+
+  it("calls onAction with correct parameters when Accept is clicked", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    const acceptButton = screen.getByText("Accept");
+    fireEvent.click(acceptButton);
+
+    expect(mockAction).toHaveBeenCalledWith("3", "accept");
+  });
+
+  it("calls onAction with correct parameters when Decline is clicked", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    const declineButton = screen.getByText("Decline");
+    fireEvent.click(declineButton);
+
+    expect(mockAction).toHaveBeenCalledWith("3", "decline");
+  });
+
+  it("calls onAction with 'view' when card is clicked", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    const card = screen.getByText("The Mystery of Grandma's Attic").closest("div");
+    fireEvent.click(card!);
+
+    expect(mockAction).toHaveBeenCalledWith("1", "view");
+  });
+
+  it("prevents card click when action button is clicked", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    const continueButton = screen.getByText("Continue Story");
+    fireEvent.click(continueButton);
+
+    // Should only be called once for the button click, not the card click
+    expect(mockAction).toHaveBeenCalledTimes(1);
+    expect(mockAction).toHaveBeenCalledWith("1", "continue");
+  });
+
+  it("formats relative time correctly", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText(/Last update: 2 hours ago/)).toBeInTheDocument();
+  });
+
+  it("shows 'Invited:' prefix for invitation stories", () => {
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText(/Invited: 2 days ago/)).toBeInTheDocument();
+  });
+
+  it("applies correct CSS classes based on story status", () => {
+    const mockAction = vi.fn();
+    
+    const { container: yourTurnContainer } = render(() => (
+      <StoryCard story={mockActiveStory} onAction={mockAction} />
+    ));
+
+    const { container: waitingContainer } = render(() => (
+      <StoryCard story={mockWaitingStory} onAction={mockAction} />
+    ));
+
+    const { container: invitationContainer } = render(() => (
+      <StoryCard story={mockInvitationStory} onAction={mockAction} />
+    ));
+
+    // Check that different story types have different styling by checking class attributes
+    const yourTurnCard = yourTurnContainer.querySelector('[class*="storyCard"]');
+    const waitingCard = waitingContainer.querySelector('[class*="storyCard"]');
+    const invitationCard = invitationContainer.querySelector('[class*="storyCard"]');
+
+    expect(yourTurnCard).toBeInTheDocument();
+    expect(waitingCard).toBeInTheDocument();
+    expect(invitationCard).toBeInTheDocument();
+
+    // Check that the class attributes are different (indicating different styling)
+    expect(yourTurnCard?.className).not.toBe(waitingCard?.className);
+    expect(waitingCard?.className).not.toBe(invitationCard?.className);
+    expect(yourTurnCard?.className).not.toBe(invitationCard?.className);
+  });
+
+  it("handles story without lastContribution gracefully", () => {
+    const storyWithoutPreview: Story = {
+      ...mockActiveStory,
+      lastContribution: undefined
+    };
+    const mockAction = vi.fn();
+    
+    render(() => (
+      <StoryCard story={storyWithoutPreview} onAction={mockAction} />
+    ));
+
+    expect(screen.getByText("The Mystery of Grandma's Attic")).toBeInTheDocument();
+    // Preview section should not be rendered
+    expect(screen.queryByText(/Last contribution by/)).not.toBeInTheDocument();
+  });
+});

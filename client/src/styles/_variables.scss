@@ -1,0 +1,154 @@
+// ====================
+// Spacing
+// ====================
+
+// Base spacing unit (in rem)
+$spacing-unit: 0.25rem;
+
+// Spacing scale
+$spacing-xs: $spacing-unit; // 0.25rem / 4px
+$spacing-sm: $spacing-unit * 2; // 0.5rem / 8px
+$spacing-md: $spacing-unit * 4; // 1rem / 16px
+$spacing-lg: $spacing-unit * 6; // 1.5rem / 24px
+$spacing-xl: $spacing-unit * 8; // 2rem / 32px
+$spacing-2xl: $spacing-unit * 12; // 3rem / 48px
+$spacing-3xl: $spacing-unit * 16; // 4rem / 64px
+
+// Component specific spacing
+$container-padding: $spacing-md;
+$card-padding: $spacing-lg;
+$button-padding: $spacing-sm $spacing-md;
+$input-padding: $spacing-sm $spacing-md;
+
+// ====================
+// Typography
+// ====================
+
+// Font families
+// TODO: Actually define the font families
+$font-family-base:
+  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+  Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+$font-family-heading: $font-family-base;
+$font-family-mono:
+  "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+// Font sizes
+$font-size-xs: 0.75rem; // 12px
+$font-size-sm: 0.875rem; // 14px
+$font-size-md: 1rem; // 16px
+$font-size-lg: 1.125rem; // 18px
+$font-size-xl: 1.25rem; // 20px
+$font-size-2xl: 1.5rem; // 24px
+$font-size-3xl: 1.875rem; // 30px
+$font-size-4xl: 2.25rem; // 36px
+$font-size-5xl: 3rem; // 48px
+
+// Line heights
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-loose: 1.75;
+$line-height-heading: 1.2;
+
+// Font weights
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Letter spacing
+$letter-spacing-tight: -0.025em;
+$letter-spacing-normal: 0;
+$letter-spacing-wide: 0.025em;
+
+// ====================
+// Borders
+// ====================
+
+// Border radius
+$border-radius-none: 0;
+$border-radius-sm: 0.125rem; // 2px
+$border-radius-md: 0.25rem; // 4px
+$border-radius-lg: 0.5rem; // 8px
+$border-radius-xl: 0.75rem; // 12px
+$border-radius-2xl: 1rem; // 16px
+$border-radius-full: 9999px;
+
+// Border width
+$border-width-none: 0;
+$border-width-thin: 1px;
+$border-width-thick: 2px;
+$border-width-thicker: 4px;
+
+// ====================
+// Shadows
+// ====================
+
+// Box shadows
+$shadow-none: none;
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md:
+  0 4px 6px -1px rgba(0, 0, 0, 0.1),
+  0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg:
+  0 10px 15px -3px rgba(0, 0, 0, 0.1),
+  0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl:
+  0 20px 25px -5px rgba(0, 0, 0, 0.1),
+  0 10px 10px -5px rgba(0, 0, 0, 0.04);
+$shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+$shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+// Focus ring shadow
+$focus-ring: 0 0 0 3px rgba(66, 153, 225, 0.5);
+
+// ====================
+// Z-index
+// ====================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// ====================
+// Transitions
+// ====================
+
+$transition-fast: 150ms;
+$transition-normal: 300ms;
+$transition-slow: 500ms;
+$transition-timing-default: ease;
+$transition-timing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+$transition-timing-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+// ====================
+// Breakpoints
+// ====================
+
+$breakpoint-xs: 320px;
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+$breakpoint-2xl: 1536px;
+
+// ====================
+// Container
+// ====================
+
+$container-max-width-sm: $breakpoint-sm;
+$container-max-width-md: $breakpoint-md;
+$container-max-width-lg: $breakpoint-lg;
+$container-max-width-xl: $breakpoint-xl;
+
+// ====================
+// Grid
+// ====================
+
+$grid-columns: 12;
+$grid-gutter: $spacing-md;

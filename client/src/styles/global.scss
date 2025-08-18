@@ -1,0 +1,10 @@
+@use "reset";
+
+body {
+  background-color: $bg-body;
+  font-family: $font-family-base;
+  @include body-text;
+}
+
+main {
+}

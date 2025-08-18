@@ -1,0 +1,52 @@
+FROM golang:1.24.3-alpine AS base
+
+# Install necessary packages
+RUN apk add --no-cache git make gcc musl-dev curl
+
+# Install Air for hot reloading
+RUN go install github.com/air-verse/air@latest
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+
+# Download dependencies and cache them in a layer
+RUN go mod download && go mod verify
+
+# Create GOCACHE and GOMODCACHE directories with proper permissions
+RUN mkdir -p /.cache/go-build /go/pkg/mod && \
+    chmod -R 777 /.cache /go/pkg
+
+# Development stage
+FROM base AS development
+
+# Copy the rest of the application
+COPY . .
+
+# Ensure Air config exists and is accessible
+COPY .air.toml .air.toml
+
+# Create tmp directory for Air and set permissions
+RUN mkdir -p tmp && chmod 755 tmp
+
+# Set up proper permissions for the entire app directory
+RUN chmod -R 755 /app
+
+# Set environment variables for Go build cache
+ENV GOCACHE=/.cache/go-build
+ENV GOMODCACHE=/go/pkg/mod
+
+# Add air to PATH explicitly
+ENV PATH="/root/go/bin:${PATH}"
+
+# Expose the port your app runs on
+EXPOSE 8280
+
+# Health check for better container monitoring
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8280/api/health || exit 1
+
+# Run Air for hot reloading
+CMD ["air", "-c", ".air.toml"]

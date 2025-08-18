@@ -1,0 +1,352 @@
+@import '../../styles/colors';
+@import '../../styles/variables';
+
+.storyPage {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: $spacing-md;
+  min-height: 100vh;
+}
+
+// Header Section
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: $spacing-xl 0;
+  border-bottom: $border-width-thick solid $border-default;
+  margin-bottom: $spacing-xl;
+  gap: $spacing-xl;
+}
+
+.storyInfo {
+  flex: 1;
+}
+
+.storyTitle {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-sm;
+  color: $text-default;
+  line-height: $line-height-tight;
+}
+
+.storyMeta {
+  color: $text-muted;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-md;
+}
+
+.storyDescription {
+  color: $text-default;
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  max-width: 600px;
+}
+
+.storyControls {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  min-width: 200px;
+}
+
+// Main Content Layout
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: $spacing-xl;
+}
+
+.storyArea {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+// Turn Indicator
+.turnIndicator {
+  text-align: center;
+  
+  .turnMessage {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-default;
+  }
+}
+
+// Story Chain
+.storyChain {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.storySegment {
+  display: flex;
+  gap: $spacing-md;
+  
+  .segmentContent {
+    flex: 1;
+  }
+  
+  .authorName {
+    font-weight: $font-weight-semibold;
+    color: $color-primary-600;
+    margin-bottom: $spacing-sm;
+    font-size: $font-size-sm;
+  }
+  
+  .segmentText {
+    color: $text-default;
+    line-height: $line-height-normal;
+    font-size: $font-size-md;
+    margin-bottom: $spacing-sm;
+  }
+  
+  .segmentMeta {
+    font-size: $font-size-xs;
+    color: $text-light;
+  }
+}
+
+// Avatars
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-inverse;
+  font-weight: $font-weight-bold;
+  flex-shrink: 0;
+  font-size: $font-size-lg;
+}
+
+.avatar1 { background: $bg-hero-gradient; }
+.avatar2 { background: linear-gradient(135deg, $color-accent-500 0%, $color-error-500 100%); }
+.avatar3 { background: linear-gradient(135deg, $color-info-500 0%, $color-secondary-500 100%); }
+.avatar4 { background: linear-gradient(135deg, $color-success-500 0%, $color-secondary-500 100%); }
+.avatar5 { background: linear-gradient(135deg, $color-accent-500 0%, $color-warning-500 100%); }
+
+// Writing Area
+.writeArea {
+  .writePrompt {
+    color: $text-muted;
+    margin-bottom: $spacing-md;
+    text-align: center;
+    font-size: $font-size-md;
+  }
+  
+  .textEditor {
+    width: 100%;
+    min-height: 120px;
+    padding: $spacing-md;
+    border: $border-width-thin solid $border-default;
+    border-radius: $border-radius-lg;
+    font-family: $font-family-base;
+    font-size: $font-size-md;
+    line-height: $line-height-normal;
+    resize: vertical;
+    margin-bottom: $spacing-md;
+    
+    &:focus {
+      outline: none;
+      border-color: $border-focus;
+      box-shadow: 0 0 0 3px rgba($color-primary-500, 0.1);
+    }
+    
+    &::placeholder {
+      color: $input-placeholder;
+    }
+  }
+  
+  .writeActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .charCount {
+    font-size: $font-size-xs;
+    color: $text-light;
+  }
+  
+  .writeButtons {
+    display: flex;
+    gap: $spacing-sm;
+  }
+}
+
+// Sidebar
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.sidebarSection {
+  .sidebarTitle {
+    font-weight: $font-weight-semibold;
+    margin-bottom: $spacing-md;
+    color: $text-default;
+    font-size: $font-size-md;
+  }
+}
+
+// Participants
+.participantsList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm;
+  border-radius: $border-radius-lg;
+  transition: background-color $transition-fast ease;
+  
+  &.currentTurn {
+    background: $bg-primary-subtle;
+    border: $border-width-thin solid $border-primary;
+  }
+}
+
+.participantAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-inverse;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+}
+
+.participantInfo {
+  flex: 1;
+  
+  .participantName {
+    font-weight: $font-weight-medium;
+    font-size: $font-size-sm;
+    color: $text-default;
+  }
+  
+  .participantStatus {
+    font-size: $font-size-xs;
+    color: $text-muted;
+  }
+}
+
+// Story Stats
+.storyStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-md;
+}
+
+.stat {
+  text-align: center;
+  padding: $spacing-sm;
+  background: $bg-subtle;
+  border-radius: $border-radius-lg;
+  
+  .statValue {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    color: $color-primary-600;
+  }
+  
+  .statLabel {
+    font-size: $font-size-xs;
+    color: $text-muted;
+  }
+}
+
+// Invite Link
+.inviteLink {
+  background: $bg-info-subtle;
+  border: $border-width-thin solid $border-info;
+  border-radius: $border-radius-lg;
+  padding: $spacing-sm;
+  font-size: $font-size-sm;
+  word-break: break-all;
+  margin-bottom: $spacing-sm;
+  color: $text-default;
+  font-family: $font-family-mono;
+}
+
+// Responsive Design
+@media (max-width: $breakpoint-md) {
+  .storyPage {
+    padding: $spacing-sm;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-lg;
+    
+    .storyControls {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: $spacing-sm;
+      
+      button {
+        flex: 1;
+        min-width: 120px;
+      }
+    }
+  }
+  
+  .mainContent {
+    grid-template-columns: 1fr;
+    gap: $spacing-lg;
+  }
+  
+  .sidebar {
+    order: -1;
+  }
+  
+  .storySegment {
+    .avatar {
+      width: 40px;
+      height: 40px;
+      font-size: $font-size-sm;
+    }
+  }
+  
+  .writeArea {
+    .writeActions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: $spacing-sm;
+      
+      .writeButtons {
+        justify-content: stretch;
+        
+        button {
+          flex: 1;
+        }
+      }
+    }
+  }
+  
+  .storyStats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: $spacing-sm;
+    
+    .stat {
+      padding: $spacing-xs;
+      
+      .statValue {
+        font-size: $font-size-lg;
+      }
+    }
+  }
+}

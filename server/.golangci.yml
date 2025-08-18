@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  # enable:
+  # - staticcheck
+  # - govet
+  # - revive
+  # - goimports
+  settings:
+    staticcheck:
+      dot-import-whitelist:
+        - server/internal/models
+
+run:
+  timeout: 5m

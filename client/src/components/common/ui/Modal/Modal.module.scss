@@ -1,0 +1,149 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/mixins";
+
+.backdrop {
+  @include absolute-fill;
+  background-color: $overlay-medium;
+  backdrop-filter: blur(4px);
+  z-index: $z-index-modal-backdrop;
+  @include flex-center;
+  opacity: 0;
+  animation: fadeIn $transition-normal ease-out forwards;
+}
+
+.modal {
+  background: $bg-surface;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-2xl;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: $z-index-modal;
+  border: 1px solid $border-default;
+  transform: scale(0.95) translateY(20px);
+  opacity: 0;
+  animation: modalEnter $transition-normal ease-out 0.1s forwards;
+
+  @media (max-width: 768px) {
+    margin: $spacing-md;
+    max-width: calc(100vw - #{$spacing-lg});
+    max-height: calc(100vh - #{$spacing-lg});
+  }
+}
+
+// Size variants
+.modalSmall {
+  width: 400px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.modalMedium {
+  width: 500px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.modalLarge {
+  width: 700px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.modalExtraLarge {
+  width: 900px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-lg $spacing-lg $spacing-md $spacing-lg;
+  border-bottom: 1px solid $border-default;
+  background: $bg-subtle;
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $text-default;
+  line-height: 1.2;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius-sm;
+  color: $text-muted;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color $transition-fast, color $transition-fast;
+  
+  &:hover {
+    background: $bg-muted;
+    color: $text-default;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.2);
+  }
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.content {
+  padding: $spacing-lg;
+  overflow-y: auto;
+  flex: 1;
+  
+  &:first-child {
+    padding-top: $spacing-lg;
+  }
+  
+  &:last-child {
+    padding-bottom: $spacing-lg;
+  }
+}
+
+// Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    transform: scale(0.95) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}

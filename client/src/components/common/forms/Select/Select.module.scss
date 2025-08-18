@@ -1,0 +1,109 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/mixins";
+
+.selectContainer {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.label {
+  display: block;
+  margin-bottom: $spacing-xs;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+}
+
+.required {
+  color: $color-error-500;
+  margin-left: $spacing-xs;
+}
+
+.selectWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.select {
+  width: 100%;
+  padding: $spacing-sm;
+  background-color: $bg-surface;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-md;
+  transition: border-color $transition-fast $transition-timing-default,
+    box-shadow $transition-fast $transition-timing-default;
+  appearance: none;
+  cursor: pointer;
+  padding-right: $spacing-xl;
+
+  &:hover {
+    border-color: $border-strong;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $border-focus;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.2);
+  }
+
+  &:disabled {
+    background-color: $bg-disabled;
+    color: $text-disabled;
+    cursor: not-allowed;
+  }
+
+  // Hide default arrow in IE
+  &::-ms-expand {
+    display: none;
+  }
+}
+
+.selectError {
+  border-color: $color-error-500 !important;
+  background-color: rgba($color-error-50, 0.5);
+
+  &:focus {
+    border-color: $color-error-500 !important;
+    box-shadow: 0 0 0 3px rgba($color-error-500, 0.2) !important;
+  }
+}
+
+.selectIcon {
+  position: absolute;
+  right: $spacing-md;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: $text-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color $transition-normal;
+
+  .select:focus + & {
+    color: $text-default;
+  }
+
+  .select:disabled + & {
+    color: $text-disabled;
+  }
+}
+
+.errorMessage {
+  color: $color-error-700;
+  font-size: $font-size-sm;
+  margin-top: $spacing-xs;
+  display: block;
+  animation: slideInError 0.2s ease-out;
+}
+
+@keyframes slideInError {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

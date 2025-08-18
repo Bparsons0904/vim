@@ -1,0 +1,229 @@
+@import '../../styles/colors';
+@import '../../styles/variables';
+
+.storyCard {
+  background: $bg-surface;
+  border-radius: $border-radius-xl;
+  padding: $card-padding;
+  box-shadow: $shadow-sm;
+  transition: transform $transition-fast ease, box-shadow $transition-fast ease;
+  border-left: $border-width-thicker solid $border-default;
+  cursor: pointer;
+  min-width: 300px;
+  max-width: 500px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+
+  &.yourTurn {
+    border-left-color: $color-success-500;
+  }
+
+  &.waiting {
+    border-left-color: $color-warning-500;
+  }
+
+  &.invitation {
+    border-left-color: $color-primary-500;
+  }
+}
+
+// Header Section
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-md;
+  gap: $spacing-sm;
+}
+
+.headerLeft {
+  flex: 1;
+  min-width: 0; // Allow text truncation
+}
+
+.headerRight {
+  flex-shrink: 0;
+}
+
+.storyTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $text-default;
+  margin-bottom: $spacing-xs;
+  line-height: $line-height-tight;
+  
+  // Truncate long titles
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.storyGroup {
+  font-size: $font-size-sm;
+  color: $text-muted;
+  line-height: $line-height-normal;
+}
+
+// Content area that expands to fill space
+.contentArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+// Preview Section
+.previewSection {
+  background: $bg-subtle;
+  border-radius: $border-radius-lg;
+  padding: $spacing-sm * 1.5;
+  margin: $spacing-md 0;
+  border-left: 3px solid $border-default;
+}
+
+.previewLabel {
+  font-size: 11px;
+  color: $text-light;
+  text-transform: uppercase;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-xs;
+  letter-spacing: $letter-spacing-wide;
+}
+
+.previewText {
+  font-size: $font-size-sm;
+  color: $text-muted;
+  font-style: italic;
+  line-height: $line-height-normal;
+  
+  // Truncate preview text to 2-3 lines
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Bottom section that stays at bottom
+.bottomSection {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+// Footer Section
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.lastActivity {
+  font-size: $font-size-xs;
+  color: $text-light;
+  flex-shrink: 0;
+}
+
+.footerActions {
+  display: flex;
+  gap: $spacing-sm * 1.5;
+  flex-shrink: 0;
+}
+
+.turnStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs * 1.5;
+  padding: $spacing-xs * 1.5 $spacing-sm * 1.5;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.yourTurn {
+    background: $color-success-100;
+    color: $color-success-700;
+  }
+
+  &.waiting {
+    background: $color-warning-100;
+    color: $color-warning-700;
+  }
+
+  &.invitation {
+    background: $color-primary-100;
+    color: $color-primary-700;
+  }
+}
+
+.participants {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: 0;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-inverse;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  border: $border-width-thick solid $bg-surface;
+  position: relative;
+
+  &:nth-child(1) { background: $bg-hero-gradient; }
+  &:nth-child(2) { background: linear-gradient(135deg, $color-accent-500 0%, $color-error-500 100%); }
+  &:nth-child(3) { background: linear-gradient(135deg, $color-info-500 0%, $color-secondary-500 100%); }
+  &:nth-child(4) { background: linear-gradient(135deg, $color-success-500 0%, $color-secondary-500 100%); }
+  &:nth-child(5) { background: linear-gradient(135deg, $color-accent-500 0%, $color-warning-500 100%); }
+
+  &.avatarMore {
+    background: $bg-muted;
+    color: $text-muted;
+  }
+}
+
+
+@media (max-width: $breakpoint-md) {
+  .storyCard {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    
+    .headerRight {
+      align-self: flex-end;
+    }
+  }
+
+  .cardFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-sm;
+  }
+
+  .footerActions {
+    width: 100%;
+  }
+
+  .turnStatus {
+    font-size: 11px;
+    padding: $spacing-xs $spacing-sm;
+  }
+}

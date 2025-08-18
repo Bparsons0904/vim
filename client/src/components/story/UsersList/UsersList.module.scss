@@ -1,0 +1,63 @@
+@import "../../../styles/variables";
+@import "../../../styles/colors";
+
+// Copy the existing styles from ParticipantsList but with more generic names
+.sidebarSection {
+  margin-bottom: $spacing-md;
+}
+
+.sidebarTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  margin-bottom: $spacing-sm;
+  color: $text-default;
+}
+
+.usersList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm;
+  border-radius: $border-radius-lg;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: $bg-subtle;
+  }
+
+  &.highlighted {
+    background-color: $bg-success-subtle;
+    border: $border-width-thin solid $border-success;
+  }
+}
+
+.userAvatar {
+  flex-shrink: 0;
+}
+
+.userInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.userName {
+  font-weight: $font-weight-medium;
+  color: $text-default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userStatus {
+  font-size: $font-size-sm;
+  color: $text-muted;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

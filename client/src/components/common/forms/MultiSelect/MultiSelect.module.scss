@@ -1,0 +1,165 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/colors";
+@import "../../../../styles/mixins";
+
+.multiSelectContainer {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  position: relative;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-default;
+  margin-bottom: $spacing-xs;
+}
+
+.required {
+  color: $color-error-500;
+  margin-left: $spacing-xs;
+}
+
+.multiSelectWrapper {
+  position: relative;
+}
+
+.multiSelectTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm $spacing-md;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-md;
+  background-color: $bg-surface;
+  cursor: pointer;
+  transition: all $transition-fast $transition-timing-default;
+  min-height: 2.75rem;
+
+  &:hover {
+    border-color: $input-border-hover;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $border-focus;
+    box-shadow: $focus-ring;
+  }
+
+  &.open {
+    border-color: $border-focus;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &.selectError {
+    border-color: $border-error;
+    
+    &:focus {
+      border-color: $border-error;
+      box-shadow: 0 0 0 3px rgba($color-error-500, 0.3);
+    }
+  }
+}
+
+.placeholder {
+  color: $input-placeholder;
+}
+
+.selectedText {
+  color: $text-default;
+}
+
+.selectIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-muted;
+  transition: transform $transition-fast ease;
+
+  &.iconRotated {
+    transform: rotate(180deg);
+  }
+}
+
+.optionsContainer {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: $z-index-dropdown;
+  background-color: $bg-surface;
+  border: $border-width-thin solid $border-focus;
+  border-top: none;
+  border-radius: 0 0 $border-radius-md $border-radius-md;
+  box-shadow: $shadow-xl;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  cursor: pointer;
+  transition: background-color $transition-fast ease;
+  background-color: $bg-surface;
+  position: relative;
+  z-index: 1;
+
+  &:hover {
+    background-color: $bg-subtle;
+  }
+
+  &.selected {
+    background-color: $bg-primary-subtle;
+    color: $text-link;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    
+    &:hover {
+      background-color: $bg-surface;
+    }
+  }
+
+  &.focused {
+    background-color: $bg-primary-subtle;
+    outline: 2px solid $border-focus;
+    outline-offset: -2px;
+  }
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-sm;
+  background-color: $bg-surface;
+  flex-shrink: 0;
+  transition: all $transition-fast ease;
+
+  .option.selected & {
+    background-color: $bg-primary;
+    border-color: $border-primary;
+    color: $button-primary-text;
+  }
+}
+
+.optionLabel {
+  flex: 1;
+  font-size: $font-size-sm;
+}
+
+.errorMessage {
+  font-size: $font-size-xs;
+  color: $text-error;
+  margin-top: $spacing-xs;
+}

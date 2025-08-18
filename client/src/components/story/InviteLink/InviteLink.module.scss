@@ -1,0 +1,25 @@
+.sidebarSection {
+  margin-bottom: 1.5rem;
+}
+
+.sidebarTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.inviteLink {
+  background-color: var(--background-secondary);
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-secondary);
+}
+
+.copyButton {
+  width: 100%;
+}

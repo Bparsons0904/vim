@@ -1,0 +1,128 @@
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+.description {
+  color: $text-muted;
+  margin: 0;
+  line-height: $line-height-normal;
+}
+
+.knownContactsSection {
+  padding: $spacing-md;
+  background-color: $bg-subtle;
+  border-radius: $border-radius-lg;
+  border: $border-width-thin solid $border-default;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.selectedContactsPreview {
+  margin-top: $spacing-sm;
+}
+
+.selectedContactsTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-default;
+  margin: 0 0 $spacing-sm 0;
+}
+
+.selectedContactsList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.selectedContactItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm;
+  background-color: $bg-primary-subtle;
+  border-radius: $border-radius-md;
+  border: $border-width-thin solid $border-primary;
+}
+
+.contactName {
+  font-weight: $font-weight-medium;
+  color: $color-primary-700;
+}
+
+.contactEmail {
+  color: $text-muted;
+  font-size: $font-size-sm;
+  flex: 1;
+}
+
+.removeContactButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background-color: $button-danger-bg;
+  color: $button-danger-text;
+  border-radius: $border-radius-full;
+  cursor: pointer;
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  transition: background-color $transition-fast $transition-timing-default;
+
+  &:hover {
+    background-color: $button-danger-hover;
+  }
+}
+
+.emailFields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm + $spacing-xs; // 0.75rem
+}
+
+.emailFieldContainer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.emailInput {
+  flex: 1;
+}
+
+.removeButton {
+  min-width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: $border-radius-full;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $button-danger-bg;
+  
+  &:hover {
+    background-color: $bg-error-subtle;
+  }
+}
+
+.addButton {
+  align-self: flex-start;
+  margin-top: $spacing-sm;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm + $spacing-xs; // 0.75rem
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: $border-width-thin solid $border-default;
+}

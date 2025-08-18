@@ -1,0 +1,55 @@
+.sidebarSection {
+  margin-bottom: 1.5rem;
+}
+
+.sidebarTitle {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.participantsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+
+  &.currentTurn {
+    background-color: var(--success-50);
+    border: 1px solid var(--success-200);
+  }
+}
+
+.participantAvatar {
+  flex-shrink: 0;
+}
+
+.participantInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.participantName {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.participantStatus {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.typingIndicator {
+  color: var(--primary-500);
+  font-style: italic;
+}

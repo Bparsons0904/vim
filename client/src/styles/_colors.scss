@@ -1,0 +1,228 @@
+// ==============================
+// Color System
+// ==============================
+
+// Base colors - Raw color values
+// These are the foundation colors that other semantic colors are built from
+
+// Neutral palette
+$color-white: #ffffff;
+$color-black: #000000;
+$color-gray-50: #f9fafb;
+$color-gray-100: #f3f4f6;
+$color-gray-200: #e5e7eb;
+$color-gray-300: #d1d5db;
+$color-gray-400: #9ca3af;
+$color-gray-500: #6b7280;
+$color-gray-600: #4b5563;
+$color-gray-700: #374151;
+$color-gray-800: #1f2937;
+$color-gray-900: #111827;
+$color-gray-950: #030712;
+
+// StoryChain Brand Colors - Purple/Blue Theme
+$color-primary-50: #f5f3ff;
+$color-primary-100: #ede9fe;
+$color-primary-200: #ddd6fe;
+$color-primary-300: #c4b5fd;
+$color-primary-400: #a78bfa;
+$color-primary-500: #8b5cf6; // Main purple
+$color-primary-600: #7c3aed;
+$color-primary-700: #6d28d9;
+$color-primary-800: #5b21b6;
+$color-primary-900: #4c1d95;
+$color-primary-950: #2e1065;
+
+// Secondary colors - Blue/Cyan accent
+$color-secondary-50: #ecfeff;
+$color-secondary-100: #cffafe;
+$color-secondary-200: #a5f3fc;
+$color-secondary-300: #67e8f9;
+$color-secondary-400: #22d3ee;
+$color-secondary-500: #06b6d4; // Main cyan
+$color-secondary-600: #0891b2;
+$color-secondary-700: #0e7490;
+$color-secondary-800: #155e75;
+$color-secondary-900: #164e63;
+$color-secondary-950: #083344;
+
+// Hero gradient colors
+$color-hero-start: #667eea;
+$color-hero-end: #764ba2;
+
+// Social section gradient colors
+$color-social-start: #8b5cf6;
+$color-social-end: #06b6d4;
+
+// Accent colors - Keep existing for other UI elements
+$color-accent-50: #fff7ed;
+$color-accent-100: #ffedd5;
+$color-accent-200: #fed7aa;
+$color-accent-300: #fdba74;
+$color-accent-400: #fb923c;
+$color-accent-500: #f97316;
+$color-accent-600: #ea580c;
+$color-accent-700: #c2410c;
+$color-accent-800: #9a3412;
+$color-accent-900: #7c2d12;
+$color-accent-950: #431407;
+
+// Feedback colors
+$color-success-50: #ecfdf5;
+$color-success-100: #d1fae5;
+$color-success-500: #10b981;
+$color-success-700: #047857;
+$color-success-900: #064e3b;
+
+$color-warning-50: #fffbeb;
+$color-warning-100: #fef3c7;
+$color-warning-200: #fef0a7;
+$color-warning-300: #fed845;
+$color-warning-500: #f59e0b;
+$color-warning-700: #b45309;
+$color-warning-900: #78350f;
+
+$color-error-50: #fef2f2;
+$color-error-100: #fee2e2;
+$color-error-500: #ef4444;
+$color-error-700: #b91c1c;
+$color-error-900: #7f1d1d;
+
+$color-info-50: #eff6ff;
+$color-info-100: #dbeafe;
+$color-info-500: #3b82f6;
+$color-info-700: #1d4ed8;
+$color-info-900: #1e3a8a;
+
+// ==============================
+// Semantic Color Variables
+// ==============================
+
+// Text Colors
+$text-default: $color-gray-900;
+$text-muted: $color-gray-600;
+$text-light: $color-gray-500;
+$text-disabled: $color-gray-400;
+$text-inverse: $color-white;
+$text-link: $color-primary-600;
+$text-link-hover: $color-primary-700;
+$text-success: $color-success-700;
+$text-warning: $color-warning-700;
+$text-error: $color-error-700;
+$text-info: $color-info-700;
+
+// Background Colors
+$bg-body: $color-white;
+$bg-surface: $color-white;
+$bg-elevated: $color-white;
+$bg-subtle: $color-gray-50;
+$bg-muted: $color-gray-100;
+$bg-disabled: $color-gray-200;
+$bg-primary: $color-primary-500;
+$bg-primary-subtle: $color-primary-50;
+$bg-secondary: $color-secondary-500;
+$bg-secondary-subtle: $color-secondary-50;
+$bg-accent: $color-accent-500;
+$bg-accent-subtle: $color-accent-50;
+$bg-success: $color-success-500;
+$bg-success-subtle: $color-success-50;
+$bg-warning: $color-warning-500;
+$bg-warning-subtle: $color-warning-50;
+$bg-error: $color-error-500;
+$bg-error-subtle: $color-error-50;
+$bg-info: $color-info-500;
+$bg-info-subtle: $color-info-50;
+
+// Gradient backgrounds for StoryChain
+$bg-hero-gradient: linear-gradient(
+  135deg,
+  $color-hero-start 0%,
+  $color-hero-end 100%
+);
+$bg-social-gradient: linear-gradient(
+  135deg,
+  $color-social-start 0%,
+  $color-social-end 100%
+);
+$bg-primary-gradient: linear-gradient(
+  135deg,
+  $color-primary-500 0%,
+  $color-primary-700 100%
+);
+
+// Border Colors
+$border-default: $color-gray-200;
+$border-strong: $color-gray-300;
+$border-focus: $color-primary-500;
+$border-disabled: $color-gray-200;
+$border-primary: $color-primary-600;
+$border-secondary: $color-secondary-600;
+$border-accent: $color-accent-500;
+$border-success: $color-success-500;
+$border-warning: $color-warning-500;
+$border-error: $color-error-500;
+$border-info: $color-info-500;
+
+// Button Colors - Updated for StoryChain theme
+$button-primary-bg: $color-primary-500;
+$button-primary-hover: $color-primary-600;
+$button-primary-active: $color-primary-700;
+$button-primary-text: $color-white;
+
+$button-secondary-bg: $color-secondary-500;
+$button-secondary-hover: $color-secondary-600;
+$button-secondary-active: $color-secondary-700;
+$button-secondary-text: $color-white;
+
+$button-tertiary-bg: $color-gray-100;
+$button-tertiary-hover: $color-gray-200;
+$button-tertiary-active: $color-gray-300;
+$button-tertiary-text: $color-gray-900;
+
+$button-danger-bg: $color-error-500;
+$button-danger-hover: $color-error-700;
+$button-danger-active: $color-error-900;
+$button-danger-text: $color-white;
+
+// Gradient button variants for StoryChain
+$button-gradient-bg: $bg-primary-gradient;
+$button-gradient-text: $color-white;
+
+// Form Colors
+$input-bg: $color-white;
+$input-border: $color-gray-300;
+$input-border-hover: $color-gray-400;
+$input-border-focus: $color-primary-500;
+$input-disabled-bg: $color-gray-100;
+$input-disabled-text: $color-gray-500;
+$input-placeholder: $color-gray-400;
+
+// Shadow Colors (for box-shadow usage)
+$shadow-color-light: rgba($color-black, 0.05);
+$shadow-color-medium: rgba($color-black, 0.1);
+$shadow-color-dark: rgba($color-black, 0.2);
+$shadow-color-primary: rgba($color-primary-500, 0.4);
+$shadow-color-primary-strong: rgba($color-primary-500, 0.6);
+
+// Overlay colors
+$overlay-light: rgba($color-black, 0.3);
+$overlay-medium: rgba($color-black, 0.5);
+$overlay-dark: rgba($color-black, 0.7);
+
+// Glass/backdrop effect colors
+$glass-bg: rgba($color-white, 0.1);
+$glass-border: rgba($color-white, 0.2);
+$glass-bg-strong: rgba($color-white, 0.2);
+
+// Dark Mode Colors
+// These would be used when implementing dark mode support
+$dark-bg-body: $color-gray-900;
+$dark-bg-surface: $color-gray-800;
+$dark-bg-elevated: $color-gray-800;
+$dark-bg-subtle: $color-gray-800;
+$dark-bg-muted: $color-gray-700;
+$dark-text-default: $color-gray-100;
+$dark-text-muted: $color-gray-400;
+$dark-text-light: $color-gray-500;
+$dark-border-default: $color-gray-700;
+$dark-border-strong: $color-gray-600;

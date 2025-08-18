@@ -1,0 +1,346 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/colors";
+
+.textEditor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-md;
+  background-color: $bg-surface;
+  transition: border-color $transition-fast $transition-timing-default;
+
+  &:focus-within {
+    border-color: $border-focus;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.2);
+  }
+
+  &:hover {
+    border-color: $border-strong;
+  }
+}
+
+// Toolbar
+.toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  border-bottom: $border-width-thin solid $border-default;
+  background-color: $color-gray-50;
+  border-radius: $border-radius-md $border-radius-md 0 0;
+  flex-wrap: wrap;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs / 2;
+}
+
+.toolbarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  color: $color-gray-600;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  transition: all $transition-fast $transition-timing-default;
+
+  &:hover {
+    background-color: $color-gray-200;
+    color: $color-gray-800;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &.active {
+    background-color: $color-primary-100;
+    color: $color-primary-700;
+    border: $border-width-thin solid $color-primary-300;
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba($color-primary-500, 0.3);
+  }
+}
+
+.separator {
+  width: 1px;
+  height: 20px;
+  background-color: $border-default;
+  margin: 0 $spacing-xs;
+}
+
+.hint {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+  margin-left: auto;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+// Emoji Picker
+.emojiPicker {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+  background: $bg-surface;
+  border: $border-width-thin solid $border-default;
+  border-radius: $border-radius-md;
+  box-shadow: $shadow-lg;
+  padding: $spacing-sm;
+  margin-top: $spacing-xs;
+  max-width: 300px;
+}
+
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: $spacing-xs / 2;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.emojiButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-lg;
+  transition: background-color $transition-fast;
+
+  &:hover {
+    background-color: $color-gray-100;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+
+// Editor Container
+.editorContainer {
+  position: relative;
+  flex: 1;
+}
+
+.editorWrapper {
+  position: relative;
+  outline: none;
+}
+
+.editorContent {
+  padding: $spacing-md;
+  outline: none;
+  font-family: $font-family-base;
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  color: $text-default;
+  background: transparent;
+
+  // Placeholder styling
+  &[data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: $color-gray-400;
+    font-style: italic;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  // Prosemirror focus styles
+  &.ProseMirror-focused {
+    outline: none;
+  }
+
+  // Typography styles for content
+  p {
+    margin: 0 0 $spacing-sm 0;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  strong {
+    font-weight: $font-weight-bold;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  u {
+    text-decoration: underline;
+  }
+
+  // Lists
+  ul, ol {
+    margin: $spacing-sm 0;
+    padding-left: $spacing-lg;
+
+    li {
+      margin: $spacing-xs 0;
+    }
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  // Text alignment
+  &[style*="text-align: center"] {
+    text-align: center;
+  }
+
+  &[style*="text-align: right"] {
+    text-align: right;
+  }
+
+  &[style*="text-align: left"] {
+    text-align: left;
+  }
+
+  // Text formatting
+  u {
+    text-decoration: underline;
+  }
+
+  s {
+    text-decoration: line-through;
+  }
+
+  // Emoji styling
+  .emoji {
+    font-size: 1.2em;
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  // Remove default browser styles for contenteditable
+  &:focus {
+    outline: none;
+  }
+}
+
+// Tiptap Emoji Extension Styles
+:global(.ProseMirror) {
+  .emoji {
+    display: inline-block;
+    font-size: 1.2em;
+    line-height: 1;
+    vertical-align: middle;
+    margin: 0 0.1em;
+  }
+}
+
+// List styling improvements
+:global(.ProseMirror) {
+  ul[data-type="bulletList"],
+  ol[data-type="orderedList"] {
+    margin: $spacing-sm 0;
+    padding-left: $spacing-lg;
+  }
+
+  li[data-type="listItem"] {
+    margin: $spacing-xs 0;
+  }
+}
+
+// Error state
+.textEditor.error {
+  border-color: $color-error-500;
+  background-color: rgba($color-error-50, 0.5);
+
+  &:focus-within {
+    border-color: $color-error-500;
+    box-shadow: 0 0 0 3px rgba($color-error-500, 0.2);
+  }
+}
+
+// Disabled state
+.textEditor.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+
+  .toolbarButton {
+    pointer-events: none;
+  }
+
+  .editorContent {
+    cursor: not-allowed;
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .toolbar {
+    padding: $spacing-xs $spacing-sm;
+    gap: $spacing-xs / 2;
+  }
+
+  .toolbarGroup {
+    gap: $spacing-xs / 4;
+  }
+
+  .toolbarButton {
+    width: 28px;
+    height: 28px;
+    font-size: $font-size-xs;
+  }
+
+  .editorContent {
+    padding: $spacing-sm;
+    font-size: $font-size-sm;
+  }
+
+  .separator {
+    height: 16px;
+    margin: 0 $spacing-xs / 2;
+  }
+
+  .hint {
+    font-size: $font-size-xs;
+    margin-left: 0;
+    flex-basis: 100%;
+    text-align: center;
+    margin-top: $spacing-xs;
+  }
+
+  .emojiPicker {
+    right: auto;
+    left: 0;
+    max-width: 250px;
+  }
+
+  .emojiGrid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .emojiButton {
+    width: 28px;
+    height: 28px;
+    font-size: $font-size-md;
+  }
+}

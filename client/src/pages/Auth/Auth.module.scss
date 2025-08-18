@@ -1,0 +1,154 @@
+.authPage {
+  min-height: 100vh;
+  background: $bg-hero-gradient;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-md;
+}
+
+.authContainer {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.authCard {
+  background: rgba($color-white, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: $border-radius-2xl;
+  padding: $spacing-3xl $spacing-2xl;
+  box-shadow: 
+    0 20px 40px rgba($color-black, 0.1),
+    0 0 0 1px rgba($color-white, 0.2);
+  border: 1px solid rgba($color-white, 0.2);
+  
+  @include breakpoint(md) {
+    padding: $spacing-2xl $spacing-xl;
+  }
+}
+
+.authHeader {
+  text-align: center;
+  margin-bottom: $spacing-2xl;
+}
+
+.authTitle {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $text-default;
+  margin-bottom: $spacing-sm;
+  background: linear-gradient(135deg, $color-primary-600 0%, $color-secondary-600 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  @include breakpoint(md) {
+    font-size: $font-size-2xl;
+  }
+}
+
+.authSubtitle {
+  font-size: $font-size-lg;
+  color: $text-muted;
+  line-height: $line-height-normal;
+  
+  @include breakpoint(md) {
+    font-size: $font-size-md;
+  }
+}
+
+.authForm {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-2xl;
+}
+
+.authActions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  margin-top: $spacing-lg;
+}
+
+.authFooter {
+  text-align: center;
+  padding-top: $spacing-lg;
+  border-top: 1px solid $border-default;
+}
+
+.authFooterText {
+  font-size: $font-size-sm;
+  color: $text-muted;
+}
+
+.authLink {
+  color: $color-primary-600;
+  text-decoration: none;
+  font-weight: $font-weight-medium;
+  transition: color $transition-fast $transition-timing-default;
+  
+  &:hover {
+    color: $color-primary-700;
+    text-decoration: underline;
+  }
+}
+
+// Additional form styling overrides
+.authForm :global(.textInput) {
+  max-width: 100%;
+}
+
+.authForm :global(.input) {
+  padding: $spacing-md;
+  font-size: $font-size-md;
+  border-radius: $border-radius-lg;
+  border: 2px solid $border-default;
+  background: $bg-surface;
+  transition: all $transition-fast $transition-timing-default;
+  
+  &:hover {
+    border-color: $color-primary-300;
+  }
+  
+  &:focus {
+    border-color: $color-primary-500;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.1);
+    background: $color-white;
+  }
+}
+
+.authForm :global(.labelText) {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $text-default;
+  margin-bottom: $spacing-xs;
+}
+
+// Responsive adjustments
+@include breakpoint(md) {
+  .authPage {
+    padding: $spacing-sm;
+  }
+  
+  .authCard {
+    margin: $spacing-md 0;
+  }
+}
+
+// Animation for page entrance
+@keyframes authSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.authCard {
+  animation: authSlideIn 0.6s ease-out;
+}

@@ -1,0 +1,40 @@
+@import '../../../../styles/colors';
+@import '../../../../styles/variables';
+
+.card {
+  background: $bg-surface;
+  border-radius: $border-radius-xl;
+  padding: $card-padding;
+  box-shadow: $shadow-sm;
+  transition: transform $transition-fast ease, box-shadow $transition-fast ease;
+  border-left: $border-width-thicker solid $border-default;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+
+  &.default {
+    border-left-color: $border-default;
+  }
+
+  &.success {
+    border-left-color: $color-success-500;
+  }
+
+  &.warning {
+    border-left-color: $color-warning-500;
+  }
+
+  &.primary {
+    border-left-color: $color-primary-500;
+  }
+
+  &.secondary {
+    border-left-color: $color-secondary-500;
+  }
+
+  &.error {
+    border-left-color: $color-error-500;
+  }
+}

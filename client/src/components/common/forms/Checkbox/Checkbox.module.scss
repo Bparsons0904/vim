@@ -1,0 +1,132 @@
+@import "../../../../styles/variables";
+@import "../../../../styles/mixins";
+
+.checkboxContainer {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.checkboxWrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  cursor: pointer;
+}
+
+.checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+
+  &:focus + .checkboxCustom {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.2);
+  }
+}
+
+.checkboxCustom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid $border-default;
+  border-radius: $border-radius-sm;
+  background: $bg-surface;
+  cursor: pointer;
+  transition: all $transition-normal;
+  flex-shrink: 0;
+  margin-top: 2px; // Align with first line of text
+
+  &:hover {
+    border-color: $color-primary-400;
+  }
+}
+
+.checkboxChecked {
+  background: $color-primary-500;
+  border-color: $color-primary-500;
+  color: $color-white;
+
+  &:hover {
+    background: $color-primary-600;
+    border-color: $color-primary-600;
+  }
+}
+
+.checkboxDisabled {
+  background: $bg-disabled;
+  border-color: $border-disabled;
+  cursor: not-allowed;
+
+  &:hover {
+    border-color: $border-disabled;
+  }
+
+  &.checkboxChecked {
+    background: $color-primary-300;
+    border-color: $color-primary-300;
+  }
+}
+
+.checkboxError {
+  + .checkboxCustom {
+    border-color: $color-error-500;
+
+    &:hover {
+      border-color: $color-error-500;
+    }
+  }
+}
+
+.checkboxIcon {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all $transition-fast;
+
+  .checkboxChecked & {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.label {
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  line-height: $line-height-normal;
+  margin: 0;
+  flex: 1;
+}
+
+.labelDisabled {
+  color: $text-disabled;
+  cursor: not-allowed;
+}
+
+.required {
+  color: $color-error-500;
+  margin-left: $spacing-xs;
+}
+
+.errorMessage {
+  color: $color-error-700;
+  font-size: $font-size-sm;
+  margin-top: $spacing-xs;
+  margin-left: calc(18px + #{$spacing-sm}); // Align with label text
+  display: block;
+  animation: slideInError 0.2s ease-out;
+}
+
+@keyframes slideInError {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

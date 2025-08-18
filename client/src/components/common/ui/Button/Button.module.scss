@@ -1,0 +1,192 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all $transition-fast $transition-timing-default;
+  border: 1px solid transparent;
+  outline: none;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px rgba($color-primary-500, 0.4);
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+
+  &:not(:disabled):active {
+    transform: translateY(0);
+  }
+}
+
+// Button sizes
+.sm {
+  padding: $spacing-xs $spacing-sm;
+  font-size: $font-size-sm;
+}
+
+.md {
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-md;
+}
+
+.lg {
+  padding: $spacing-md $spacing-lg;
+  font-size: $font-size-lg;
+}
+
+// Button variants
+.primary {
+  background-color: $button-primary-bg;
+  color: $button-primary-text;
+  box-shadow: 0 2px 8px rgba($color-primary-500, 0.3);
+
+  &:hover:not(:disabled) {
+    background-color: $button-primary-hover;
+    box-shadow: 0 4px 16px rgba($color-primary-500, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    background-color: $button-primary-active;
+    box-shadow: 0 2px 8px rgba($color-primary-500, 0.3);
+  }
+}
+
+.secondary {
+  background-color: $button-secondary-bg;
+  color: $button-secondary-text;
+  box-shadow: 0 2px 8px rgba($color-secondary-500, 0.3);
+
+  &:hover:not(:disabled) {
+    background-color: $button-secondary-hover;
+    box-shadow: 0 4px 16px rgba($color-secondary-500, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    background-color: $button-secondary-active;
+    box-shadow: 0 2px 8px rgba($color-secondary-500, 0.3);
+  }
+}
+
+.tertiary {
+  background-color: $button-tertiary-bg;
+  color: $button-tertiary-text;
+  border-color: $border-default;
+  box-shadow: 0 1px 3px $shadow-color-light;
+
+  &:hover:not(:disabled) {
+    background-color: $button-tertiary-hover;
+    border-color: $border-strong;
+    box-shadow: 0 2px 8px $shadow-color-medium;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $button-tertiary-active;
+    box-shadow: 0 1px 3px $shadow-color-light;
+  }
+}
+
+.danger {
+  background-color: $button-danger-bg;
+  color: $button-danger-text;
+  box-shadow: 0 2px 8px rgba($color-error-500, 0.3);
+
+  &:hover:not(:disabled) {
+    background-color: $button-danger-hover;
+    box-shadow: 0 4px 16px rgba($color-error-500, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    background-color: $button-danger-active;
+    box-shadow: 0 2px 8px rgba($color-error-500, 0.3);
+  }
+}
+
+.warning {
+  background-color: $color-warning-100;
+  color: $color-warning-700;
+  border-color: $color-warning-100;
+  box-shadow: 0 1px 3px $shadow-color-light;
+
+  &:hover:not(:disabled) {
+    background-color: $color-warning-200;
+    border-color: $color-warning-200;
+    box-shadow: 0 2px 8px $shadow-color-medium;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $color-warning-700;
+    border-color: $color-warning-700;
+    box-shadow: 0 1px 3px $shadow-color-light;
+  }
+}
+
+// New gradient variant for StoryChain theme
+.gradient {
+  background: $bg-hero-gradient;
+  color: $color-white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba($color-primary-500, 0.4);
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba($color-white, 0.2),
+      transparent
+    );
+    transition: left 0.6s ease;
+  }
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba($color-primary-500, 0.5);
+
+    &::before {
+      left: 100%;
+    }
+  }
+
+  &:active:not(:disabled) {
+    box-shadow: 0 4px 16px rgba($color-primary-500, 0.4);
+  }
+}
+
+// Ghost variant for subtle actions
+.ghost {
+  background-color: transparent;
+  color: $color-white;
+  border-color: rgba($color-white, 0.6);
+
+  &:hover:not(:disabled) {
+    background-color: rgba($color-white, 0.1);
+    color: $color-white;
+    border-color: $color-white;
+    box-shadow: 0 2px 8px rgba($color-white, 0.2);
+  }
+
+  &:active:not(:disabled) {
+    background-color: rgba($color-white, 0.2);
+    color: $color-white;
+    border-color: $color-white;
+  }
+}

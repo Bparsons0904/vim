@@ -1,0 +1,236 @@
+# ===========================================
+# BILLY WU - CENTRALIZED GITIGNORE
+# ===========================================
+# Covers: Go (server), SolidJS (client), Flutter (future), shared files
+#
+# Technology-specific sections are clearly marked below
+
+# ===========================================
+# SHARED / CROSS-CUTTING PATTERNS
+# ===========================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+build-errors.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# GO (SERVER) PATTERNS
+# ===========================================
+
+# Go binaries
+server/main
+server/api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test binaries
+*.test
+
+# Go coverage reports
+*.out
+coverage.html
+coverage.out
+
+# Go workspace file
+go.work
+
+# Go build cache
+server/.cache
+
+# Air hot reloading
+server/tmp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+server/data/
+server/cmd/migration/test.db
+server/cmd/migration/relative.db
+server/cmd/migration/nonexistent.db
+
+# Go vendor (if used)
+vendor/
+
+# Go module cache
+go.sum.backup
+
+# ===========================================
+# NODE.JS / SOLIDJS (CLIENT) PATTERNS
+# ===========================================
+
+# Dependencies
+node_modules/
+.npm
+.pnpm-store/
+
+# Build outputs
+client/dist/
+client/build/
+client/.next/
+client/out/
+
+# Vite
+client/.vite/
+.vite/
+
+# Parcel
+client/.parcel-cache/
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
+
+# Stylelint cache
+.stylelintcache
+
+# Package manager locks (keep package-lock.json, ignore others if needed)
+# Uncomment the ones you don't want to track:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ===========================================
+# FLUTTER (MOBILE) - READY FOR FUTURE
+# ===========================================
+
+# Flutter/Dart build outputs
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/pubspec.lock
+
+# Flutter generated files
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/ios/Runner/GeneratedPluginRegistrant.*
+mobile/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+mobile/android/local.properties
+mobile/android/key.properties
+
+# Flutter coverage
+mobile/coverage/
+
+# Symbolication related
+mobile/app.*.symbols
+mobile/app.*.map.json
+
+# iOS
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/App.framework
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Runner/GoogleService-Info.plist
+
+# Android
+mobile/android/.gradle/
+mobile/android/captures/
+mobile/android/gradlew
+mobile/android/gradlew.bat
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/app/google-services.json
+
+# Web (Flutter web builds)
+mobile/web/
+
+# ===========================================
+# DOCKER & DEPLOYMENT
+# ===========================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Deployment artifacts
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# ===========================================
+# PROJECT SPECIFIC
+# ===========================================
+
+# Documentation builds
+docs/build/
+docs/_build/
+
+# Config files with sensitive data
+config/config.local.yaml
+**/config.local.*
+
+# Test artifacts
+test-results/
+junit.xml
+coverage/
+
+# Backup files
+*.backup
+*.bak
+
+# Archive files
+*.zip
+*.tar.gz
+*.tar.bz2
+*.rar
+
+# Large media files (consider Git LFS for these)
+*.mov
+*.mp4
+*.avi
+*.wmv
+*.flv
+*.webm
+
+# Generated documentation
+api-docs/
+docs/generated/
+.

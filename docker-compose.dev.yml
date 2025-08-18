@@ -1,0 +1,88 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: vim-server-${DOCKER_ENV:-dev}
+    ports:
+      - "${SERVER_PORT:-8288}:8288"
+    volumes:
+      - ./server:/app
+      # - /app/main
+      - ./.env:/app/.env
+      # - ./.env.local:/app/.env.local:ro  # Mount .env.local if it exists (read-only)
+      - server_cache:/go/pkg/mod
+      - server_gocache:/.cache/go-build
+      - server_db:/app/tmp
+    environment:
+      - GO_ENV=development
+      - CGO_ENABLED=1
+      - GOCACHE=/.cache/go-build
+      - GOMODCACHE=/go/pkg/mod
+      - SERVER_PORT=8288 # Internal port should always be 8288
+    working_dir: /app
+    networks:
+      - dev-network-dev
+    restart: unless-stopped
+    depends_on:
+      - valkey
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: vim-client-${DOCKER_ENV:-dev}
+    ports:
+      - "${CLIENT_PORT:-3020}:3020"
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+      - client_dist:/app/dist
+    environment:
+      - NODE_ENV=development
+      - VITE_GENERAL_VERSION=${VITE_GENERAL_VERSION:-0.0.1}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8288}
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:8288/ws}
+      - VITE_ENV=${VITE_ENV:-local}
+      - VITE_HOST=0.0.0.0
+      - VITE_PORT=3020 # Internal port should always be 3020
+    working_dir: /app
+    networks:
+      - dev-network-dev
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  valkey:
+    image: valkey/valkey:8.0-alpine
+    container_name: vim-valkey-${DOCKER_ENV:-dev}
+    ports:
+      - "${VALKEY_PORT:-6379}:6379"
+    volumes:
+      - valkey_data:/data
+      - valkey_logs:/var/log/valkey
+    environment:
+      - VALKEY_ENV=development
+    networks:
+      - dev-network-dev
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+volumes:
+  server_tmp:
+  server_cache:
+  server_gocache:
+  server_db:
+  client_node_modules:
+  client_dist:
+  valkey_data:
+  valkey_logs:
+
+networks:
+  dev-network-dev:
+    driver: bridge

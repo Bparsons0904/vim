@@ -1,0 +1,117 @@
+.navbar {
+  background-color: $bg-surface;
+  color: $text-default;
+  padding: $spacing-md 0;
+  box-shadow: 0 2px 4px $shadow-color-light;
+  border-bottom: 1px solid $border-default;
+}
+.navbarContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+  @include breakpoint(md) {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+.navbarLogo {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  @include breakpoint(md) {
+    font-size: $font-size-2xl;
+  }
+}
+.navbarTitle {
+  text-decoration: none;
+  transition: all $transition-fast $transition-timing-default;
+  background: linear-gradient(
+    135deg,
+    $color-primary-600 0%,
+    $color-secondary-600 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: $font-weight-bold;
+
+  &:hover {
+    background: linear-gradient(
+      135deg,
+      $color-primary-700 0%,
+      $color-secondary-700 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+.navbarMenu {
+  display: flex;
+  width: 100%;
+  margin-top: $spacing-md;
+  @include breakpoint(md) {
+    width: auto;
+    margin-top: 0;
+  }
+}
+.navbarItems {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  @include breakpoint(md) {
+    flex-direction: row;
+    width: auto;
+  }
+}
+.navbarItem {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  padding: $spacing-sm 0;
+  &:not(:last-child) {
+    border-bottom: $border-width-thin solid rgba($color-white, 0.1);
+  }
+  @include breakpoint(md) {
+    width: auto;
+    text-align: left;
+    margin-left: $spacing-md;
+    &:not(:last-child) {
+      border-bottom: none;
+    }
+  }
+}
+.navbarLink {
+  color: $text-muted;
+  padding: $spacing-sm $spacing-md;
+  position: relative;
+  transition: all $transition-fast $transition-timing-default;
+  text-decoration: none;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-medium;
+
+  &:hover {
+    color: $color-primary-600;
+  }
+
+  &.active {
+    color: $color-primary-600;
+
+    &:after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 2px;
+      background: $color-primary-500;
+      border-radius: $border-radius-full;
+    }
+  }
+}

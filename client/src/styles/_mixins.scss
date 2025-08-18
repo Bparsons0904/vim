@@ -1,0 +1,269 @@
+@use "variables" as *;
+
+// ===========================
+// Responsive breakpoints
+// ===========================
+
+@mixin breakpoint($point) {
+  @if $point == xs {
+    @media (min-width: $breakpoint-xs) {
+      @content;
+    }
+  } @else if $point == sm {
+    @media (min-width: $breakpoint-sm) {
+      @content;
+    }
+  } @else if $point == md {
+    @media (min-width: $breakpoint-md) {
+      @content;
+    }
+  } @else if $point == lg {
+    @media (min-width: $breakpoint-lg) {
+      @content;
+    }
+  } @else if $point == xl {
+    @media (min-width: $breakpoint-xl) {
+      @content;
+    }
+  } @else if $point == 2xl {
+    @media (min-width: $breakpoint-2xl) {
+      @content;
+    }
+  }
+}
+
+// ===========================
+// Flexbox helpers
+// ===========================
+
+@mixin flex(
+  $direction: row,
+  $justify: flex-start,
+  $align: stretch,
+  $wrap: nowrap
+) {
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+  flex-wrap: $wrap;
+}
+
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+// ===========================
+// Grid helpers
+// ===========================
+
+@mixin grid($columns: 1, $gap: $spacing-md) {
+  display: grid;
+  grid-template-columns: repeat($columns, 1fr);
+  gap: $gap;
+}
+
+@mixin grid-areas($areas...) {
+  display: grid;
+  grid-template-areas: $areas;
+}
+
+// ===========================
+// Typography
+// ===========================
+
+@mixin heading-1 {
+  font-size: $font-size-4xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-heading;
+  letter-spacing: $letter-spacing-tight;
+}
+
+@mixin heading-2 {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  line-height: $line-height-heading;
+  letter-spacing: $letter-spacing-tight;
+}
+
+@mixin heading-3 {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-heading;
+}
+
+@mixin heading-4 {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-heading;
+}
+
+@mixin heading {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-heading;
+}
+
+@mixin body-text {
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+}
+
+@mixin small-text {
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// ===========================
+// Positioning
+// ===========================
+
+@mixin absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@mixin absolute-fill {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+// ===========================
+// Visual effects
+// ===========================
+
+@mixin card {
+  background-color: $bg-surface;
+  border-radius: $border-radius-md;
+  box-shadow: $shadow-md;
+  padding: $card-padding;
+}
+
+@mixin transition(
+  $properties: all,
+  $duration: $transition-normal,
+  $timing: $transition-timing-default
+) {
+  transition-property: $properties;
+  transition-duration: $duration;
+  transition-timing-function: $timing;
+}
+
+@mixin focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: $focus-ring;
+  }
+}
+
+// ===========================
+// Hide content visually but keep it accessible
+// ===========================
+
+@mixin visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  white-space: nowrap;
+}
+
+// ===========================
+// Container
+// ===========================
+
+@mixin container($max-width: $container-max-width-lg) {
+  width: 100%;
+  max-width: $max-width;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: $container-padding;
+  padding-right: $container-padding;
+}
+
+// ===========================
+// Media queries for dark mode
+// ===========================
+
+@mixin dark-mode {
+  @media (prefers-color-scheme: dark) {
+    @content;
+  }
+}
+
+// ===========================
+// Custom scrollbar
+// ===========================
+
+@mixin custom-scrollbar(
+  $width: 6px,
+  $track-color: rgba(0, 0, 0, 0.1),
+  $thumb-color: rgba(0, 0, 0, 0.3)
+) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: $thumb-color;
+    border-radius: $width;
+  }
+}
+
+// ===========================
+// Animations
+// ===========================
+
+@mixin fadeIn($duration: $transition-normal) {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  animation: fadeIn $duration ease forwards;
+}
