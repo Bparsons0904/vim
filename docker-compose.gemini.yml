@@ -2,8 +2,8 @@ version: "3.8"
 
 services:
   server:
-    image: billy-wu-server-dev-gemini
-    container_name: billy-wu-server-gemini
+    image: vim-actions-server-dev-gemini
+    container_name: vim-actions-server-gemini
     ports:
       - "${SERVER_PORT:-8280}:8280"
     volumes:
@@ -28,8 +28,8 @@ services:
       - valkey
 
   client:
-    image: billy-wu-client-dev-gemini
-    container_name: billy-wu-client-gemini
+    image: vim-actions-client-dev-gemini
+    container_name: vim-actions-client-gemini
     ports:
       - "${CLIENT_PORT:-3010}:3010"
     volumes:
@@ -51,8 +51,8 @@ services:
       - server
 
   valkey:
-    image: billy-wu-valkey-dev-gemini
-    container_name: billy-wu-valkey-gemini
+    image: vim-actions-valkey-dev-gemini
+    container_name: vim-actions-valkey-gemini
     ports:
       - "${VALKEY_PORT:-6379}:6379"
     volumes:

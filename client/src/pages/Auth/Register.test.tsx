@@ -42,8 +42,8 @@ describe("Register", () => {
       </MockRouter>
     ));
     
-    expect(screen.getByText("Join Billy Wu")).toBeInTheDocument();
-    expect(screen.getByText("Start your creative journey and connect with a community of storytellers")).toBeInTheDocument();
+    expect(screen.getByText("Join Vim Actions")).toBeInTheDocument();
+    expect(screen.getByText("Start your vim workflow journey and streamline your productivity")).toBeInTheDocument();
     expect(screen.getByLabelText(/First Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Email Address/)).toBeInTheDocument();

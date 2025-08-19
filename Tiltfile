@@ -1,4 +1,4 @@
-# Tiltfile for Billy Wu development environment
+# Tiltfile for Vim Actions development environment
 
 # Load environment variables from client/.env
 load('ext://dotenv', 'dotenv')
@@ -21,7 +21,7 @@ DEV_MODE = True
 
 # Go Server with Air hot reloading - Volume mount approach
 docker_build(
-    'billy-wu-server-dev-' + DOCKER_ENV,
+    'vim-actions-server-dev-' + DOCKER_ENV,
     context='./server',
     dockerfile='./server/Dockerfile.dev',
     target='development',
@@ -41,7 +41,7 @@ docker_build(
 
 # SolidJS Client with Vite hot reloading  
 docker_build(
-    'billy-wu-client-dev-' + DOCKER_ENV,
+    'vim-actions-client-dev-' + DOCKER_ENV,
     context='./client',
     dockerfile='./client/Dockerfile.dev',
     live_update=[
@@ -77,7 +77,7 @@ docker_build(
 
 # Valkey database service
 docker_build(
-    'billy-wu-valkey-dev-' + DOCKER_ENV,
+    'vim-actions-valkey-dev-' + DOCKER_ENV,
     context='./database/valkey',
     dockerfile='./database/valkey/Dockerfile.dev',
     live_update=[
@@ -279,7 +279,7 @@ if DEV_MODE:
     )
 
 
-print("🚀 Billy Wu Development Environment (Environment: %s)" % DOCKER_ENV)
+print("🚀 Vim Actions Development Environment (Environment: %s)" % DOCKER_ENV)
 print("📊 Tilt Dashboard: http://localhost:%s" % TILT_PORT)
 print("🔧 Server API: http://localhost:%s" % SERVER_PORT)
 print("🎨 Client App: http://localhost:%s" % CLIENT_PORT)

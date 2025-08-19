@@ -18,21 +18,21 @@ func Seed(db *gorm.DB, config config.Config, log logger.Logger) error {
 
 	users := []User{
 		{
-			FirstName:   "Bob",
-			LastName:    "Parsons",
-			DisplayName: "Bob Parsons",
-			Email:       stringPtr("bob.parsons@example.com"),
-			Login:       "deadstyle",
+			FirstName:   "Admin",
+			LastName:    "User",
+			DisplayName: "Administrator",
+			Email:       stringPtr("admin@example.com"),
+			Login:       "admin",
 			Password:    "password",
 			IsAdmin:     true,
 		}, {
-			FirstName:   "Bob",
-			LastName:    "Covell",
-			DisplayName: "Bitch Ass",
-			Email:       stringPtr("bob.covell@example.com"),
-			Login:       "bobb",
+			FirstName:   "Test",
+			LastName:    "User",
+			DisplayName: "Test User",
+			Email:       stringPtr("test@example.com"),
+			Login:       "test",
 			Password:    "password",
-			IsAdmin:     true,
+			IsAdmin:     false,
 		}, {
 			FirstName:   "Ada",
 			LastName:    "Lovelace",

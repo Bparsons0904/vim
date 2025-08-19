@@ -15,7 +15,6 @@ const (
 	SESSION_CACHE_INDEX
 	USER_CACHE_INDEX
 	EVENTS_CACHE_INDEX
-	STORY_CACHE_INDEX
 )
 
 func (s *DB) initializeCacheDB(config config.Config) error {
@@ -71,15 +70,6 @@ func (s *DB) initializeCacheDB(config config.Config) error {
 		return log.Err("failed to create events valkey client", err)
 	}
 
-	cacheDB.Story, err = valkey.NewClient(
-		valkey.ClientOption{
-			InitAddress: []string{fmt.Sprintf("%s:%d", address, port)},
-			SelectDB:    STORY_CACHE_INDEX,
-		},
-	)
-	if err != nil {
-		return log.Err("failed to create story valkey client", err)
-	}
 
 	s.Cache = cacheDB
 
@@ -111,9 +101,6 @@ func clearCacheDB(index int, cacheDB Cache) {
 	case EVENTS_CACHE_INDEX:
 		client = cacheDB.Events
 		dbName = "Events"
-	case STORY_CACHE_INDEX:
-		client = cacheDB.Story
-		dbName = "Story"
 	default:
 		log.Warn("Invalid cache database index", "index", index)
 		return

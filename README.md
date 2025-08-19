@@ -1,16 +1,15 @@
-# Billy Wu Project
+# Vim Actions Project
 
-A modern full-stack web application featuring a Go backend with Fiber framework, SolidJS frontend, and Valkey cache database. The development environment is orchestrated using Docker and Tilt for an optimal developer experience.
+A modern full-stack web application designed for building vim action workflows. Features a Go backend with Fiber framework, SolidJS frontend, and Valkey cache database. The development environment is orchestrated using Docker and Tilt for an optimal developer experience.
 
 ## 🏗️ Architecture
 
 ```
-billy-wu/
+vim-actions/
 ├── server/          # Go backend (Repository pattern + Fiber + GORM + SQLite)
 │   ├── internal/
 │   │   ├── repositories/    # Data access layer with interfaces
 │   │   ├── controllers/     # Business logic with DI
-│   │   ├── interfaces/      # Service contracts
 │   │   ├── app/            # Dependency injection container
 │   │   └── ...
 ├── client/          # SolidJS frontend (TypeScript + Vite)
@@ -27,9 +26,9 @@ billy-wu/
 - [Node.js v22](https://nodejs.org/) (for local development)
 - [Go 1.24+](https://golang.org/) (for local development)
 
-- 🔧 **Server API**: http://localhost:8280 (with WebSocket at /ws)
-- 🎨 **Client App**: http://localhost:3010 (with automatic WebSocket auth)
-- 💾 **Valkey DB**: localhost:6379
+- 🔧 **Server API**: http://localhost:8288 (with WebSocket at /ws)
+- 🎨 **Client App**: http://localhost:3020 (with automatic WebSocket auth)
+- 💾 **Valkey DB**: localhost:6399
 - 📊 **Tilt Dashboard**: http://localhost:10350
 
 ### Development Environment
@@ -46,9 +45,9 @@ open http://localhost:10350
 
 This will start:
 
-- 🔧 **Server API**: http://localhost:8280
-- 🎨 **Client App**: http://localhost:3010
-- 💾 **Valkey DB**: localhost:6379
+- 🔧 **Server API**: http://localhost:8288
+- 🎨 **Client App**: http://localhost:3020
+- 💾 **Valkey DB**: localhost:6399
 - 📊 **Tilt Dashboard**: http://localhost:10350
 
 ### Alternative: Docker Compose Only
@@ -183,13 +182,13 @@ All environment variables are managed in a single `.env` file at the project roo
 GENERAL_VERSION=0.0.1
 
 # Server Configuration
-SERVER_PORT=8280
-DB_PATH=tmp/billy_wu.db
+SERVER_PORT=8288
+DB_PATH=data/vim.db
 DB_CACHE_ADDRESS=valkey
 DB_CACHE_PORT=6379
 
 # CORS - must expose X-Auth-Token header for WebSocket auth
-CORS_ALLOW_ORIGINS=http://localhost:3010
+CORS_ALLOW_ORIGINS=http://localhost:3020
 
 # Security & Authentication
 SECURITY_SALT=12
@@ -197,8 +196,8 @@ SECURITY_PEPPER=your-secure-pepper-string
 SECURITY_JWT_SECRET=your-secure-jwt-secret
 
 # Client Configuration
-VITE_API_URL=http://localhost:8280
-VITE_WS_URL=ws://localhost:8280/ws
+VITE_API_URL=http://localhost:8288
+VITE_WS_URL=ws://localhost:8288/ws
 VITE_ENV=local
 ```
 
@@ -241,7 +240,7 @@ While the current setup is optimized for development, production deployment cons
 
 ### Common Issues
 
-1. **Port Conflicts**: Ensure ports 8280, 3010, and 6379 are available
+1. **Port Conflicts**: Ensure ports 8288, 3020, and 6399 are available
 2. **Docker Issues**: Try `docker system prune` to clean up resources
 3. **Tilt Issues**: Check the Tilt dashboard logs for detailed error information
 4. **Database Issues**: Use `./scripts/dev-tools.sh db reset` to reset the database

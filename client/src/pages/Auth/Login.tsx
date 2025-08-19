@@ -25,7 +25,7 @@ const Login: Component = () => {
         <TextInput
           label="Username or Email"
           name="login"
-          defaultValue="deadstyle"
+          defaultValue="admin"
           autoComplete="username"
           minLength={3}
           required

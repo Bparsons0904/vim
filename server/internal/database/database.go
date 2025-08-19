@@ -22,7 +22,6 @@ type Cache struct {
 	Session CacheClient
 	User    CacheClient
 	Events  CacheClient
-	Story   CacheClient
 }
 
 type DB struct {
@@ -169,7 +168,6 @@ func (s *DB) FlushAllCaches() error {
 		{s.Cache.Session, "Session"},
 		{s.Cache.User, "User"},
 		{s.Cache.Events, "Events"},
-		{s.Cache.Story, "Story"},
 	}
 	
 	for _, cache := range cacheClients {

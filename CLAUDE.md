@@ -77,15 +77,9 @@ This keeps production code clean and ensures tests accurately reflect real-world
 
 ### Development Workspace Script
 
-- **Start full workspace**: `./scripts/start-dev-workspace.sh`
-  - Creates detached zellij session with 3 panes running tilt services
-  - Opens 6 terminal tabs automatically with project-specific navigation
-  - BillyWu: default port, claude: --port 10351, gemini: --port 10352
-  - Requires zellij layout: `billywu-workspace` (symlinked from dotfiles)
-  - Configurable project paths via environment variables:
-    - `BILLYWU_PATH` - Path to BillyWu project
-    - `CLAUDE_PATH` - Path to claude project  
-    - `GEMINI_PATH` - Path to gemini project
+- **Start development environment**: `tilt up`
+  - Starts all services with hot reloading
+  - Access via Tilt dashboard at http://localhost:10350
 
 ### MCP Tools Usage
 
@@ -121,7 +115,7 @@ The `cd` command is aliased to zoxide and cannot be used directly in bash comman
 
 ### High-Level Structure
 
-Full-stack application with Go backend, SolidJS frontend, and Valkey cache:
+Full-stack application for vim action workflows with Go backend, SolidJS frontend, and Valkey cache:
 
 - **Backend**: Fiber framework with SQLite + GORM, JWT auth, WebSockets
 - **Frontend**: SolidJS with TypeScript, Vite, CSS Modules, Solid Query
@@ -130,9 +124,9 @@ Full-stack application with Go backend, SolidJS frontend, and Valkey cache:
 
 ### Key Ports
 
-- Server API: http://localhost:8280 (WebSocket: ws://localhost:8280/ws)
-- Client App: http://localhost:3010
-- Valkey DB: localhost:6679 (note: non-standard port to avoid conflicts)
+- Server API: http://localhost:8288 (WebSocket: ws://localhost:8288/ws)
+- Client App: http://localhost:3020
+- Valkey DB: localhost:6399 (note: non-standard port to avoid conflicts)
 
 ### Backend Architecture (Go)
 
@@ -185,12 +179,11 @@ Full-stack application with Go backend, SolidJS frontend, and Valkey cache:
 
 - `server/internal/app/app.go` - Main dependency injection container
 - `client/src/context/AuthContext.tsx` - Auth state management
-- `server/internal/routes/router.go` - API route definitions
+- `server/internal/handlers/router.go` - API route definitions
 - `client/src/services/api/api.service.ts` - API client with interceptors
 - `Tiltfile` - Development environment configuration
 - `docs/API_IMPLEMENTATION_GUIDE.md` - Comprehensive API development guide
-- `docs/StyleGuide.md` - CSS architecture and design token conventions
-- `WORKTREE-README.md` - Git worktree setup for parallel development
+- `client/StyleGuide.md` - CSS architecture and design token conventions
 
 ### Environment Configuration
 
@@ -203,19 +196,17 @@ All environment variables in `.env` at project root, shared between services.
 - Useful for local database paths, different ports, or testing configurations
 - Both backend (Go) and frontend (Vite) support this pattern
 
-**Running Parallel Development Instances:**
+**Running Multiple Development Instances:**
 
 - Use `.env.local` to configure different ports for parallel development
 - Each environment gets isolated Docker resources via `DOCKER_ENV` variable
 - Multiple docker-compose files available: `docker-compose.dev.yml`, `docker-compose.claude.yml`, `docker-compose.gemini.yml`
 - Example configuration for running alongside main instance:
-  - Server: `localhost:8281` (instead of 8280)
-  - Client: `localhost:3011` (instead of 3010)
-  - Valkey: `localhost:6680` (instead of 6679)
+  - Server: `localhost:8289` (instead of 8288)
+  - Client: `localhost:3021` (instead of 3020)
+  - Valkey: `localhost:6400` (instead of 6399)
   - Separate database: `data/local_dev.db`
-  - Unique Docker containers: `billy-wu-server-claude`, `billy-wu-client-claude`, etc.
-  - Isolated volumes and networks prevent conflicts with other worktrees
-- See `.env.local.example` and `WORKTREE-README.md` for complete parallel setup
+- See `.env.local.example` for complete configuration examples
 
 ### Testing Strategy
 

@@ -109,9 +109,9 @@ const Register: Component = () => {
       <div class={styles.authContainer}>
         <div class={styles.authCard}>
           <div class={styles.authHeader}>
-            <h1 class={styles.authTitle}>Join Billy Wu</h1>
+            <h1 class={styles.authTitle}>Join Vim Actions</h1>
             <p class={styles.authSubtitle}>
-              Start your creative journey and connect with a community of storytellers
+              Start your vim workflow journey and streamline your productivity
             </p>
           </div>
 

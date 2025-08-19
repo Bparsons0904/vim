@@ -1,4 +1,4 @@
-# Billy Wu Valkey Database
+# Vim Actions Valkey Database
 
 A high-performance Valkey cache database configured for session management, caching, and real-time data storage. Valkey is a Redis-compatible database that provides enhanced performance and modern features.
 
@@ -33,14 +33,14 @@ The Valkey database is automatically started through the main project's Tilt or 
 
 ```bash
 # Build and run the Valkey container
-docker build -f Dockerfile.dev -t billy-wu-valkey-dev .
-docker run -p 6379:6379 billy-wu-valkey-dev
+docker build -f Dockerfile.dev -t vim-actions-valkey-dev .
+docker run -p 6399:6379 vim-actions-valkey-dev
 ```
 
 ### Connection Information
 
 - **Host**: `localhost` (local development) or `valkey` (Docker network)
-- **Port**: `6379`
+- **Port**: `6399` (external), `6379` (internal)
 - **Database**: `0` (default)
 - **Authentication**: None (development mode)
 

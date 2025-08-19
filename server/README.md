@@ -1,4 +1,4 @@
-# Billy Wu Server
+# Vim Actions Server
 
 A high-performance Go backend API built with Fiber framework, featuring authentication, WebSocket support, and comprehensive database management. Uses an App Container architecture pattern to eliminate circular dependencies and ensure clean initialization.
 
@@ -138,8 +138,8 @@ The recommended way is through the main project's Tilt setup, but you can also r
 
 ```bash
 # Build and run development container
-docker build -f Dockerfile.dev -t billy-wu-server-dev .
-docker run -p 8280:8280 billy-wu-server-dev
+docker build -f Dockerfile.dev -t vim-actions-server-dev .
+docker run -p 8288:8288 vim-actions-server-dev
 ```
 
 ## 🔧 Configuration
@@ -154,15 +154,15 @@ GENERAL_VERSION=0.0.1
 ENVIRONMENT=development
 
 # Server
-SERVER_PORT=8280
+SERVER_PORT=8288
 
 # Database
-DB_PATH=tmp/billy_wu.db
+DB_PATH=data/vim.db
 DB_CACHE_ADDRESS=valkey  # or localhost for local development
 DB_CACHE_PORT=6379
 
 # CORS - must expose X-Auth-Token header for WebSocket auth
-CORS_ALLOW_ORIGINS=http://localhost:3010
+CORS_ALLOW_ORIGINS=http://localhost:3020
 
 # Security & Authentication
 SECURITY_SALT=12
@@ -192,7 +192,7 @@ SECURITY_JWT_SECRET=your-secure-jwt-secret
 
 | Endpoint                 | Description                                      | Authentication     |
 | ------------------------ | ------------------------------------------------ | ------------------ |
-| `ws://localhost:8280/ws` | WebSocket connection for real-time communication | JWT Token Required |
+| `ws://localhost:8288/ws` | WebSocket connection for real-time communication | JWT Token Required |
 
 **WebSocket Authentication:**
 
@@ -204,7 +204,7 @@ SECURITY_JWT_SECRET=your-secure-jwt-secret
 
 ```javascript
 // Client-side WebSocket auth flow
-const ws = new WebSocket("ws://localhost:8280/ws");
+const ws = new WebSocket("ws://localhost:8288/ws");
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
@@ -420,8 +420,8 @@ type App struct {
 3. **Port Already in Use**:
 
    ```bash
-   # Find process using port 8280
-   lsof -i :8280
+   # Find process using port 8288
+   lsof -i :8288
    # Kill process if needed
    kill -9 <PID>
    ```

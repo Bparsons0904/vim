@@ -73,7 +73,7 @@ describe("Login", () => {
     const usernameInput = screen.getByLabelText(/Username or Email/) as HTMLInputElement;
     const passwordInput = screen.getByLabelText(/Password/) as HTMLInputElement;
     
-    expect(usernameInput.value).toBe("deadstyle");
+    expect(usernameInput.value).toBe("admin");
     expect(passwordInput.value).toBe("password");
   });
 
@@ -190,7 +190,7 @@ describe("Login", () => {
     fireEvent.submit(form);
     
     expect(mockLogin).toHaveBeenCalledWith({
-      login: "deadstyle",
+      login: "admin",
       password: "password",
     });
   });

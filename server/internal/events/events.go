@@ -195,13 +195,6 @@ func (eb *EventBus) PublishUserLogout(userID string) error {
 	})
 }
 
-func (eb *EventBus) PublishAdminBroadcast(message string, adminUserID string) error {
-	return eb.Publish("admin.broadcast", Event{
-		Type:   "admin_broadcast",
-		UserID: adminUserID,
-		Data:   map[string]any{"message": message},
-	})
-}
 
 func (eb *EventBus) PublishCacheInvalidation(resourceType string, resourceID string, userIDs []string) error {
 	return eb.Publish("cache.invalidation", Event{

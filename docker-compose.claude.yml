@@ -2,8 +2,8 @@ version: "3.8"
 
 services:
   server:
-    image: billy-wu-server-dev-claude
-    container_name: billy-wu-server-claude
+    image: vim-actions-server-dev-claude
+    container_name: vim-actions-server-claude
     ports:
       - "${SERVER_PORT:-8280}:8280"
     volumes:
@@ -28,8 +28,8 @@ services:
       - valkey
 
   client:
-    image: billy-wu-client-dev-claude
-    container_name: billy-wu-client-claude
+    image: vim-actions-client-dev-claude
+    container_name: vim-actions-client-claude
     ports:
       - "${CLIENT_PORT:-3010}:3010"
     volumes:
@@ -51,8 +51,8 @@ services:
       - server
 
   valkey:
-    image: billy-wu-valkey-dev-claude
-    container_name: billy-wu-valkey-claude
+    image: vim-actions-valkey-dev-claude
+    container_name: vim-actions-valkey-claude
     ports:
       - "${VALKEY_PORT:-6379}:6379"
     volumes:
