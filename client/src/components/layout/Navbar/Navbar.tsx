@@ -31,6 +31,15 @@ export const NavBar: Component = () => {
                 <Match when={isAuthenticated()}>
                   <li class={styles.navbarItem}>
                     <A
+                      href="/workstation"
+                      class={styles.navbarLink}
+                      activeClass={styles.active}
+                    >
+                      Workstation
+                    </A>
+                  </li>
+                  <li class={styles.navbarItem}>
+                    <A
                       href="/profile"
                       class={styles.navbarLink}
                       activeClass={styles.active}
