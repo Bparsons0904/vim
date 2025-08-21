@@ -6,12 +6,12 @@ export default defineConfig({
   envDir: "../",
   plugins: [solidPlugin()],
   server: {
-    port: 3010,
+    port: 3020,
     host: "0.0.0.0",
     hmr: {
       protocol: "ws",
       host: "localhost",
-      port: 3010,
+      port: 3020,
     },
     watch: {
       usePolling: false,
@@ -59,4 +59,3 @@ export default defineConfig({
     },
   },
 });
-

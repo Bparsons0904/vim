@@ -17,7 +17,7 @@ RUN npm install
 COPY . .
 
 # Expose the port Vite runs on
-EXPOSE 3010
+EXPOSE 3020
 
 # Ensure dependencies are up to date before starting
 CMD ["sh", "-c", "npm install && npm run dev"]

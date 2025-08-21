@@ -236,7 +236,6 @@ func (c *Client) routeMessage(message Message) {
 		return
 	}
 
-	// Gemini: The intent here was to switch on the channel and make detailed events for each type there.
 	switch message.Type {
 	default:
 		log.Warn("Unknown message type", "type", message.Type)
@@ -247,7 +246,6 @@ func (c *Client) routeMessage(message Message) {
 		slog.Info("System message", "messageID", message.ID, "clientID", c.ID, "message", message)
 	case "user":
 		slog.Info("User message", "messageID", message.ID, "clientID", c.ID, "message", message)
-		// Gemini: Here is where we would switch on the channel and make detailed events for each type there. We will need to create the function for each channel.
 	}
 }
 

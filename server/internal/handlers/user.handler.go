@@ -35,11 +35,21 @@ func (h *UserHandler) Register() {
 }
 
 func (h *UserHandler) getUser(c *fiber.Ctx) error {
-	user := c.Locals("user").(User)
-	if user.ID == "" {
-		h.log.Function("getUser").ErMsg("No user found in locals")
-		return c.Status(fiber.StatusInternalServerError).
-			JSON(fiber.Map{"message": "error", "error": "failed to get user"})
+	// user := c.Locals("user").(User)
+	// if user.ID == "" {
+	// 	h.log.Function("getUser").ErMsg("No user found in locals")
+	// 	return c.Status(fiber.StatusInternalServerError).
+	// 		JSON(fiber.Map{"message": "error", "error": "failed to get user"})
+	// }
+
+	user := User{
+		BaseUUIDModel: BaseUUIDModel{
+			ID: "0198ca62-4fff-7923-9adb-f3a93a37fee2",
+		},
+		FirstName: "John",
+		LastName:  "Doe",
+		Login:     "johndoe",
+		IsAdmin:   true,
 	}
 
 	return c.JSON(fiber.Map{"message": "success", "user": user})

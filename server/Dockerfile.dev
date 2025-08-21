@@ -46,7 +46,7 @@ EXPOSE 8288
 
 # Health check for better container monitoring
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8280/api/health || exit 1
+  CMD curl -f http://localhost:8288/api/health || exit 1
 
 # Run Air for hot reloading
 CMD ["air", "-c", ".air.toml"]

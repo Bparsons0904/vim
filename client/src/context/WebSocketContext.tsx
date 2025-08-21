@@ -94,6 +94,8 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
   };
 
   const getWebSocketUrl = () => {
+    // TODO: Remove to enable Auth
+    return env.wsUrl;
     if (!isAuthenticated() || !authToken()) {
       return null;
     }
@@ -102,7 +104,8 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
 
   const handleAuthRequest = () => {
     log("Handling auth request");
-    const token = authToken();
+    // TODO: Remove to enable Auth
+    const token = authToken() ?? "token";
 
     if (!token) {
       log("No auth token available");
