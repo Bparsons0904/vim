@@ -18,32 +18,20 @@ steps:
       - cd server
       - go mod download
       - CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
-    depends_on:
-      - build-frontend
 
   - name: build-server-image
     image: docker:24-cli
-    environment:
-      DOCKER_HOST: unix:///var/run/docker.sock
     commands:
       - cd server
       - docker build -t vim-server:latest .
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
     depends_on:
       - build-backend
 
   - name: build-client-image
     image: docker:24-cli
-    environment:
-      DOCKER_HOST: unix:///var/run/docker.sock
     commands:
       - cd client
       - docker build -t vim-client:latest .
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
     depends_on:
       - build-frontend
 
@@ -56,7 +44,6 @@ steps:
   - name: deploy
     image: docker/compose:alpine-1.29.2
     environment:
-      DOCKER_HOST: unix:///var/run/docker.sock
       CORS_ALLOW_ORIGINS:
         from_secret: CORS_ALLOW_ORIGINS
       SECURITY_SALT:
@@ -70,19 +57,11 @@ steps:
       - docker network create traefik || true
       - docker-compose up -d
       - docker image prune -f
-    volumes:
-      - name: docker
-        path: /var/run/docker.sock
     when:
       branch:
         - main
       event:
         - push
-
-volumes:
-  - name: docker
-    host:
-      path: /var/run/docker.sock
 
 depends_on:
   - build
