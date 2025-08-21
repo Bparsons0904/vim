@@ -54,7 +54,7 @@ services:
     image: vim-actions-valkey-dev-gemini
     container_name: vim-actions-valkey-gemini
     ports:
-      - "${VALKEY_PORT:-6379}:6379"
+      - "${DB_CACHE_PORT:-6379}:6379"
     volumes:
       - valkey_data:/data
       - valkey_logs:/var/log/valkey

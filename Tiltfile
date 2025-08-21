@@ -12,7 +12,7 @@ if os.path.exists('./.env.local'):
 # Configuration - use environment variables with defaults
 SERVER_PORT = os.getenv('SERVER_PORT', '8280')
 CLIENT_PORT = os.getenv('CLIENT_PORT', '3010')
-VALKEY_PORT = os.getenv('VALKEY_PORT', '6379')
+DB_CACHE_PORT= os.getenv('DB_CACHE_PORT', '6379')
 DOCKER_ENV = os.getenv('DOCKER_ENV', 'dev')
 TILT_PORT = os.getenv('TILT_PORT', '10350')
 
@@ -283,7 +283,7 @@ print("🚀 Vim Actions Development Environment (Environment: %s)" % DOCKER_ENV)
 print("📊 Tilt Dashboard: http://localhost:%s" % TILT_PORT)
 print("🔧 Server API: http://localhost:%s" % SERVER_PORT)
 print("🎨 Client App: http://localhost:%s" % CLIENT_PORT)
-print("💾 Valkey DB: localhost:%s" % VALKEY_PORT)
+print("💾 Valkey DB: localhost:%s" % DB_CACHE_PORT)
 print("💡 Hot reloading enabled for all services!")
 print("🧪 Manual test/lint resources available in Tilt UI")
 
