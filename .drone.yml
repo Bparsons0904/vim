@@ -6,11 +6,9 @@ name: build
 steps:
   - name: build-frontend
     image: node:22-alpine
-    environment:
-      NODE_ENV: production
     commands:
       - cd client
-      - npm ci
+      - npm ci --include=dev
       - npm run build
 
   - name: build-backend
