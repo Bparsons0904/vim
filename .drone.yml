@@ -14,6 +14,7 @@ steps:
   - name: build-backend
     image: golang:1.24.3-alpine
     commands:
+      - apk add --no-cache gcc musl-dev
       - cd server
       - go mod download
       - CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
