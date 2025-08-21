@@ -10,7 +10,7 @@ steps:
       NODE_ENV: production
     commands:
       - cd client
-      - npm ci --only=production
+      - npm ci
       - npm run build
 
   - name: build-backend
