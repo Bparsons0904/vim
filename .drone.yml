@@ -1,0 +1,89 @@
+---
+kind: pipeline
+type: docker
+name: build
+
+steps:
+  - name: build-frontend
+    image: node:22-alpine
+    environment:
+      NODE_ENV: production
+    commands:
+      - cd client
+      - npm ci --only=production
+      - npm run build
+
+  - name: build-backend
+    image: golang:1.24.3-alpine
+    commands:
+      - cd server
+      - go mod download
+      - CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
+    depends_on:
+      - build-frontend
+
+  - name: build-server-image
+    image: docker:24-cli
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+    commands:
+      - cd server
+      - docker build -t vim-server:latest .
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+    depends_on:
+      - build-backend
+
+  - name: build-client-image
+    image: docker:24-cli
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+    commands:
+      - cd client
+      - docker build -t vim-client:latest .
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+    depends_on:
+      - build-frontend
+
+---
+kind: pipeline
+type: docker
+name: deploy
+
+steps:
+  - name: deploy
+    image: docker/compose:alpine-1.29.2
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      CORS_ALLOW_ORIGINS:
+        from_secret: CORS_ALLOW_ORIGINS
+      SECURITY_SALT:
+        from_secret: SECURITY_SALT
+      SECURITY_PEPPER:
+        from_secret: SECURITY_PEPPER
+      SECURITY_JWT_SECRET:
+        from_secret: SECURITY_JWT_SECRET
+    commands:
+      - docker-compose down || true
+      - docker network create traefik || true
+      - docker-compose up -d
+      - docker image prune -f
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
+    when:
+      branch:
+        - main
+      event:
+        - push
+
+volumes:
+  - name: docker
+    host:
+      path: /var/run/docker.sock
+
+depends_on:
+  - build
