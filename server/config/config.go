@@ -31,6 +31,17 @@ func InitConfig() (Config, error) {
 	// Enable automatic environment variable reading first
 	viper.AutomaticEnv()
 
+	// Bind environment variables to config keys
+	envVars := []string{
+		"GENERAL_VERSION", "ENVIRONMENT", "SERVER_PORT", "DB_PATH",
+		"DB_CACHE_ADDRESS", "DB_CACHE_PORT", "DB_CACHE_RESET",
+		"CORS_ALLOW_ORIGINS", "SECURITY_SALT", "SECURITY_PEPPER", "SECURITY_JWT_SECRET",
+	}
+	
+	for _, env := range envVars {
+		viper.BindEnv(env)
+	}
+
 	// Check if key environment variables are already set
 	envVarsSet := viper.IsSet("SERVER_PORT") && viper.IsSet("SECURITY_JWT_SECRET")
 
