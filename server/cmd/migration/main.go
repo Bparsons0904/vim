@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"server/cmd/migration/initialize"
@@ -14,15 +15,18 @@ import (
 
 	migrate "github.com/rubenv/sql-migrate"
 	"gorm.io/gorm"
+	_ "github.com/lib/pq"
 )
 
 const (
 	MIGRATION_PATH = "cmd/migration/migrations"
-	MIGRATION_DB   = "sqlite3"
+	MIGRATION_DB   = "postgres"
 )
 
 var MODELS_TO_MIGRATE = []any{
 	&User{},
+	&LoadTest{},
+	&TestData{},
 }
 
 func main() {
@@ -178,14 +182,15 @@ func runMigrations(
 		Dir: MIGRATION_PATH,
 	}
 
-	filename := config.DatabaseDbPath
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		config.DatabaseHost,
+		config.DatabasePort,
+		config.DatabaseUser,
+		config.DatabasePassword,
+		config.DatabaseName,
+	)
 
-	dir := filepath.Dir(filename)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return log.Err("failed to create database directory", err)
-	}
-
-	db, err := sql.Open(MIGRATION_DB, filename)
+	db, err := sql.Open(MIGRATION_DB, dsn)
 	if err != nil {
 		return log.Err("failed to open database for migrations", err)
 	}

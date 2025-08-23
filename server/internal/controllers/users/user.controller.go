@@ -104,6 +104,6 @@ func (c *UserController) broadcastUserLogin(user User) {
 
 	log.Info("Broadcasting user login event", "userID", user.ID, "login", user.Login)
 	if c.wsManager != nil {
-		c.wsManager.BroadcastUserLogin(user.ID, userData)
+		c.wsManager.BroadcastUserLogin(user.ID.String(), userData)
 	}
 }

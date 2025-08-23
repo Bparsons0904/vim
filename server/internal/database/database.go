@@ -2,15 +2,14 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"server/config"
 	logg "server/internal/logger"
 	"time"
 
 	"github.com/valkey-io/valkey-go"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -82,27 +81,42 @@ func (s *DB) initializeDB(config config.Config) error {
 		CreateBatchSize:                          100,
 	}
 
-	return s.initializeSQLiteDB(gormConfig, config)
+	return s.initializePostgresDB(gormConfig, config)
 }
 
-func (s *DB) initializeSQLiteDB(gormConfig *gorm.Config, config config.Config) error {
-	log := s.log.Function("initializeSQLiteDB")
+func (s *DB) initializePostgresDB(gormConfig *gorm.Config, config config.Config) error {
+	log := s.log.Function("initializePostgresDB")
 
-	dbPath := config.DatabaseDbPath
-	if dbPath == "" {
-		return log.Error("database path is empty", "dbPath", dbPath)
+	if config.DatabaseHost == "" {
+		return log.Error("database host is empty")
+	}
+	if config.DatabaseName == "" {
+		return log.Error("database name is empty")
+	}
+	if config.DatabaseUser == "" {
+		return log.Error("database user is empty")
 	}
 
-	dir := filepath.Dir(dbPath)
-	log.Info("Creating database directory", "dir", dir)
-	if err := os.MkdirAll("data", 0755); err != nil {
-		return log.Err("failed to create database directory", err, "dir", dir)
-	}
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+		config.DatabaseHost,
+		config.DatabasePort,
+		config.DatabaseUser,
+		config.DatabasePassword,
+		config.DatabaseName,
+	)
 
-	log.Info("Connecting with GORM", "dbPath", dbPath)
-	db, err := gorm.Open(sqlite.Open(dbPath), gormConfig)
+	log.Info(
+		"Connecting to PostgreSQL",
+		"host",
+		config.DatabaseHost,
+		"port",
+		config.DatabasePort,
+		"database",
+		config.DatabaseName,
+	)
+	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
-		return log.Err("failed to open database with GORM", err)
+		return log.Err("failed to open PostgreSQL database with GORM", err)
 	}
 
 	sqlDB, err := db.DB()
@@ -111,10 +125,10 @@ func (s *DB) initializeSQLiteDB(gormConfig *gorm.Config, config config.Config) e
 	}
 
 	if err := sqlDB.Ping(); err != nil {
-		return log.Err("failed to ping database through GORM", err)
+		return log.Err("failed to ping PostgreSQL database through GORM", err)
 	}
 
-	log.Info("Successfully connected with GORM")
+	log.Info("Successfully connected to PostgreSQL with GORM")
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
@@ -156,10 +170,10 @@ func (s *DB) SQLWithContext(ctx context.Context) *gorm.DB {
 func (s *DB) FlushAllCaches() error {
 	log := s.log.Function("FlushAllCaches")
 	log.Info("Flushing all cache databases")
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	cacheClients := []struct {
 		client CacheClient
 		name   string
@@ -169,7 +183,7 @@ func (s *DB) FlushAllCaches() error {
 		{s.Cache.User, "User"},
 		{s.Cache.Events, "Events"},
 	}
-	
+
 	for _, cache := range cacheClients {
 		if cache.client != nil {
 			if err := cache.client.Do(ctx, cache.client.B().Flushdb().Build()).Error(); err != nil {
@@ -179,7 +193,7 @@ func (s *DB) FlushAllCaches() error {
 			log.Info("Successfully flushed cache database", "cache", cache.name)
 		}
 	}
-	
+
 	log.Info("All cache databases flushed successfully")
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	. "server/internal/models"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -42,9 +43,10 @@ func (h *UserHandler) getUser(c *fiber.Ctx) error {
 	// 		JSON(fiber.Map{"message": "error", "error": "failed to get user"})
 	// }
 
+	userID := uuid.MustParse("0198ca62-4fff-7923-9adb-f3a93a37fee2")
 	user := User{
 		BaseUUIDModel: BaseUUIDModel{
-			ID: "0198ca62-4fff-7923-9adb-f3a93a37fee2",
+			ID: userID,
 		},
 		FirstName: "John",
 		LastName:  "Doe",

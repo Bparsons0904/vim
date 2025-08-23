@@ -11,7 +11,11 @@ type Config struct {
 	GeneralVersion       string `mapstructure:"GENERAL_VERSION"`
 	Environment          string `mapstructure:"ENVIRONMENT"`
 	ServerPort           int    `mapstructure:"SERVER_PORT"`
-	DatabaseDbPath       string `mapstructure:"DB_PATH"`
+	DatabaseHost         string `mapstructure:"DB_HOST"`
+	DatabasePort         int    `mapstructure:"DB_PORT"`
+	DatabaseName         string `mapstructure:"DB_NAME"`
+	DatabaseUser         string `mapstructure:"DB_USER"`
+	DatabasePassword     string `mapstructure:"DB_PASSWORD"`
 	DatabaseCacheAddress string `mapstructure:"DB_CACHE_ADDRESS"`
 	DatabaseCachePort    int    `mapstructure:"DB_CACHE_PORT"`
 	DatabaseCacheReset   int    `mapstructure:"DB_CACHE_RESET"`
@@ -33,13 +37,15 @@ func InitConfig() (Config, error) {
 
 	// Bind environment variables to config keys
 	envVars := []string{
-		"GENERAL_VERSION", "ENVIRONMENT", "SERVER_PORT", "DB_PATH",
+		"GENERAL_VERSION", "ENVIRONMENT", "SERVER_PORT", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD",
 		"DB_CACHE_ADDRESS", "DB_CACHE_PORT", "DB_CACHE_RESET",
 		"CORS_ALLOW_ORIGINS", "SECURITY_SALT", "SECURITY_PEPPER", "SECURITY_JWT_SECRET",
 	}
 	
 	for _, env := range envVars {
-		viper.BindEnv(env)
+		if err := viper.BindEnv(env); err != nil {
+			log.Warn("Failed to bind environment variable", "env", env, "error", err)
+		}
 	}
 
 	// Check if key environment variables are already set
