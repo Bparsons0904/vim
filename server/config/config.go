@@ -28,23 +28,35 @@ func InitConfig() (Config, error) {
 	log := logger.New("config").Function("InitConfig")
 	log.Info("Initializing config")
 
-	// Load base .env file
-	viper.SetConfigFile(".env")
-	viper.SetConfigType("env")
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Warn("Could not find .env file", "error", err)
-	}
-
-	// Load .env.local overrides if it exists
-	viper.SetConfigFile(".env.local")
-	if err := viper.MergeInConfig(); err != nil {
-		log.Debug("No .env.local file found, using base configuration", "error", err)
-	} else {
-		log.Info("Loaded .env.local overrides")
-	}
-
+	// Enable automatic environment variable reading first
 	viper.AutomaticEnv()
+
+	// Check if key environment variables are already set
+	envVarsSet := viper.IsSet("SERVER_PORT") && viper.IsSet("SECURITY_JWT_SECRET")
+
+	if envVarsSet {
+		log.Info("Environment variables detected, skipping file loading")
+	} else {
+		log.Info("Environment variables not found, attempting to load from files")
+		
+		// Load base .env file
+		viper.SetConfigFile(".env")
+		viper.SetConfigType("env")
+
+		if err := viper.ReadInConfig(); err != nil {
+			log.Warn("Could not find .env file", "error", err)
+		} else {
+			log.Info("Loaded .env file")
+		}
+
+		// Load .env.local overrides if it exists
+		viper.SetConfigFile(".env.local")
+		if err := viper.MergeInConfig(); err != nil {
+			log.Debug("No .env.local file found", "error", err)
+		} else {
+			log.Info("Loaded .env.local overrides")
+		}
+	}
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
