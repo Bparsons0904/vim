@@ -3,9 +3,7 @@ import { LoadTestConfig, LoadTestResult } from "@pages/LoadTest/LoadTest";
 
 export interface StartLoadTestRequest {
   rows: number;
-  columns: number;
-  dateColumns: number;
-  method: 'brute_force' | 'optimized';
+  method: 'brute_force' | 'batched';
 }
 
 export interface StartLoadTestResponse {
@@ -31,8 +29,6 @@ export interface DeleteLoadTestResponse {
 export const startLoadTest = async (config: LoadTestConfig): Promise<StartLoadTestResponse> => {
   return postApi<StartLoadTestResponse, StartLoadTestRequest>('load-tests', {
     rows: config.rows,
-    columns: config.columns,
-    dateColumns: config.dateColumns,
     method: config.method,
   });
 };
@@ -47,7 +43,7 @@ export const getLoadTestHistory = async (params?: {
   page?: number;
   limit?: number;
   status?: 'running' | 'completed' | 'failed';
-  method?: 'brute_force' | 'optimized';
+  method?: 'brute_force' | 'batched';
 }): Promise<GetLoadTestHistoryResponse> => {
   return getApi<GetLoadTestHistoryResponse>('load-tests', params);
 };

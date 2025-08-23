@@ -281,17 +281,6 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
         </Show>
       </Card>
 
-      {/* Performance Tips */}
-      <Card class={styles.tipsCard}>
-        <h2>Performance Tips</h2>
-        <ul class={styles.tipsList}>
-          <li>Use the <strong>Optimized method</strong> for better performance with large datasets</li>
-          <li>Reduce date columns if validation is slowing down parsing</li>
-          <li>Batch sizes of 3000-5000 rows typically provide best insertion performance</li>
-          <li>Consider your database configuration and available memory for large tests</li>
-          <li>Monitor system resources during large tests (10M+ rows)</li>
-        </ul>
-      </Card>
     </div>
   );
 };

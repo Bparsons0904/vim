@@ -15,8 +15,10 @@ type LoadTest struct {
 }
 
 type CreateLoadTestRequest struct {
-	Rows        int    `json:"rows" validate:"required,min=1"`
-	Columns     int    `json:"columns" validate:"required,min=1"`  // Total columns (210 max: 200 regular + 10 date)
-	DateColumns int    `json:"dateColumns" validate:"min=0,max=10"` // Number of date columns to populate (0-10)
-	Method      string `json:"method" validate:"required,oneof=brute_force optimized"`
+	Rows   int    `json:"rows" validate:"required,min=1"`
+	Method string `json:"method" validate:"required,oneof=brute_force batched optimized"`
+	// Note: Columns and DateColumns are ignored - we use a fixed structure:
+	// - 5 date columns (birth_date, start_date, end_date, created_at, updated_at)
+	// - 20 regular columns (col1-col20)
+	// - Total: 25 columns
 }

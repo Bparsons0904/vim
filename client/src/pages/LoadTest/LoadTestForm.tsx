@@ -13,36 +13,20 @@ interface LoadTestFormProps {
 
 const ROW_PRESETS = [
   { label: "10K", value: 10000 },
+  { label: "50K", value: 50000 },
   { label: "100K", value: 100000 },
+  { label: "500K", value: 500000 },
   { label: "1M", value: 1000000 },
+  { label: "5M", value: 5000000 },
   { label: "10M", value: 10000000 },
 ];
 
 export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const [rows, setRows] = createSignal(10000);
-  const [customRows, setCustomRows] = createSignal("");
-  const [columns, setColumns] = createSignal(50);
-  const [datePercentage, setDatePercentage] = createSignal(20);
-  const [method, setMethod] = createSignal<'brute_force' | 'optimized'>('optimized');
-  const [useCustomRows, setUseCustomRows] = createSignal(false);
+  const [method, setMethod] = createSignal<'brute_force' | 'batched'>('batched');
 
   const handlePresetClick = (value: number) => {
     setRows(value);
-    setUseCustomRows(false);
-    setCustomRows("");
-  };
-
-  const handleCustomRowsChange = (value: string) => {
-    setCustomRows(value);
-    const numValue = parseInt(value);
-    if (!isNaN(numValue) && numValue > 0) {
-      setRows(numValue);
-      setUseCustomRows(true);
-    }
-  };
-
-  const calculateDateColumns = () => {
-    return Math.floor((columns() * datePercentage()) / 100);
   };
 
   const handleSubmit = (e: Event) => {
@@ -50,8 +34,6 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
     
     const config: LoadTestConfig = {
       rows: rows(),
-      columns: columns(),
-      dateColumns: calculateDateColumns(),
       method: method(),
     };
 
@@ -59,7 +41,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   };
 
   const getEstimatedTime = () => {
-    const rowsPerSecond = method() === 'optimized' ? 20000 : 100;
+    const rowsPerSecond = method() === 'batched' ? 50000 : 100;
     const estimatedSeconds = Math.ceil(rows() / rowsPerSecond);
     
     if (estimatedSeconds < 60) {
@@ -83,7 +65,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
             <For each={ROW_PRESETS}>
               {(preset) => (
                 <Button
-                  variant={!useCustomRows() && rows() === preset.value ? "primary" : "secondary"}
+                  variant={rows() === preset.value ? "primary" : "secondary"}
                   size="sm"
                   onClick={() => handlePresetClick(preset.value)}
                   disabled={props.disabled}
@@ -93,65 +75,18 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               )}
             </For>
           </div>
-          
-          <div class={styles.customInput}>
-            <TextInput
-              label="Custom Row Count"
-              placeholder="Enter custom number"
-              value={customRows()}
-              onInput={handleCustomRowsChange}
-              type="text"
-              pattern="[0-9]*"
-              class={styles.numberInput}
-            />
-          </div>
-          
-          <div class={styles.currentValue}>
-            Selected: <strong>{rows().toLocaleString()}</strong> rows
-          </div>
         </div>
 
-        {/* Column Count */}
+        {/* Fixed Column Configuration Info */}
         <div class={styles.section}>
           <h3>Column Configuration</h3>
-          <div class={styles.sliderGroup}>
-            <label class={styles.sliderLabel}>
-              <span>Total Columns: <strong>{columns()}</strong></span>
-              <input
-                type="range"
-                min="10"
-                max="200"
-                step="10"
-                value={columns()}
-                onInput={(e) => setColumns(parseInt(e.target.value))}
-                class={styles.slider}
-                disabled={props.disabled}
-              />
-              <div class={styles.sliderRange}>
-                <span>10</span>
-                <span>200</span>
-              </div>
-            </label>
-          </div>
-
-          <div class={styles.sliderGroup}>
-            <label class={styles.sliderLabel}>
-              <span>Date Columns: <strong>{calculateDateColumns()}</strong> ({datePercentage()}%)</span>
-              <input
-                type="range"
-                min="0"
-                max="50"
-                step="5"
-                value={datePercentage()}
-                onInput={(e) => setDatePercentage(parseInt(e.target.value))}
-                class={styles.slider}
-                disabled={props.disabled}
-              />
-              <div class={styles.sliderRange}>
-                <span>0%</span>
-                <span>50%</span>
-              </div>
-            </label>
+          <div class={styles.fixedConfig}>
+            <p>Uses a fixed set of 25 meaningful demographic, employment, and health columns plus 125 additional columns for testing (150 total).</p>
+            <div class={styles.configDetails}>
+              <span><strong>25</strong> meaningful columns (names, addresses, employment, insurance)</span>
+              <span><strong>125</strong> ignored filler columns</span>
+              <span><strong>6</strong> date columns with validation</span>
+            </div>
           </div>
         </div>
 
@@ -178,13 +113,13 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               <input
                 type="radio"
                 name="method"
-                value="optimized"
-                checked={method() === 'optimized'}
-                onChange={() => setMethod('optimized')}
+                value="batched"
+                checked={method() === 'batched'}
+                onChange={() => setMethod('batched')}
                 disabled={props.disabled}
               />
               <div class={styles.radioContent}>
-                <strong>Optimized</strong>
+                <strong>Batched</strong>
                 <p>Batch inserts with transactions - faster</p>
               </div>
             </label>
@@ -200,13 +135,9 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               <span class={styles.summaryValue}>{rows().toLocaleString()}</span>
             </div>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Columns:</span>
-              <span class={styles.summaryValue}>{columns()} ({calculateDateColumns()} date)</span>
-            </div>
-            <div class={styles.summaryItem}>
               <span class={styles.summaryLabel}>Method:</span>
               <span class={styles.summaryValue}>
-                {method() === 'optimized' ? 'Optimized' : 'Brute Force'}
+                {method() === 'batched' ? 'Batched' : 'Brute Force'}
               </span>
             </div>
             <div class={styles.summaryItem}>

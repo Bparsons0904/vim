@@ -257,24 +257,37 @@ func (r *testDataRepository) BatchInsertWithCustomColumns(
 			LoadTestID: loadTestID,
 		}
 
-		// Use reflection or manual mapping to populate fields
-		// For performance, we'll manually map the most common columns
-		if val, ok := record["col1"]; ok {
-			if str, ok := val.(string); ok {
-				testData.Col1 = &str
+		// Map meaningful columns for fixed 25-column structure
+		meaningfulColumns := map[string]**string{
+			"first_name":        &testData.FirstName,
+			"last_name":         &testData.LastName,
+			"email":             &testData.Email,
+			"phone":             &testData.Phone,
+			"address_line_1":    &testData.AddressLine1,
+			"address_line_2":    &testData.AddressLine2,
+			"city":              &testData.City,
+			"state":             &testData.State,
+			"zip_code":          &testData.ZipCode,
+			"country":           &testData.Country,
+			"social_security_no": &testData.SocialSecurityNo,
+			"employer":          &testData.Employer,
+			"job_title":         &testData.JobTitle,
+			"department":        &testData.Department,
+			"salary":            &testData.Salary,
+			"insurance_plan_id": &testData.InsurancePlanID,
+			"insurance_carrier": &testData.InsuranceCarrier,
+			"policy_number":     &testData.PolicyNumber,
+			"group_number":      &testData.GroupNumber,
+			"member_id":         &testData.MemberID,
+		}
+		
+		for colName, fieldPtr := range meaningfulColumns {
+			if val, ok := record[colName]; ok {
+				if str, ok := val.(string); ok {
+					*fieldPtr = &str
+				}
 			}
 		}
-		if val, ok := record["col2"]; ok {
-			if str, ok := val.(string); ok {
-				testData.Col2 = &str
-			}
-		}
-		if val, ok := record["col3"]; ok {
-			if str, ok := val.(string); ok {
-				testData.Col3 = &str
-			}
-		}
-		// Continue mapping other columns as needed...
 
 		testDataBatch = append(testDataBatch, testData)
 	}
@@ -285,17 +298,46 @@ func (r *testDataRepository) BatchInsertWithCustomColumns(
 // GetColumnValue retrieves a specific column value from TestData by field name
 func (r *testDataRepository) GetColumnValue(testData *TestData, columnName string) *string {
 	switch columnName {
-	case "col1":
-		return testData.Col1
-	case "col2":
-		return testData.Col2
-	case "col3":
-		return testData.Col3
-	case "col4":
-		return testData.Col4
-	case "col5":
-		return testData.Col5
-	// Add more cases as needed for other columns
+	case "first_name":
+		return testData.FirstName
+	case "last_name":
+		return testData.LastName
+	case "email":
+		return testData.Email
+	case "phone":
+		return testData.Phone
+	case "address_line_1":
+		return testData.AddressLine1
+	case "address_line_2":
+		return testData.AddressLine2
+	case "city":
+		return testData.City
+	case "state":
+		return testData.State
+	case "zip_code":
+		return testData.ZipCode
+	case "country":
+		return testData.Country
+	case "social_security_no":
+		return testData.SocialSecurityNo
+	case "employer":
+		return testData.Employer
+	case "job_title":
+		return testData.JobTitle
+	case "department":
+		return testData.Department
+	case "salary":
+		return testData.Salary
+	case "insurance_plan_id":
+		return testData.InsurancePlanID
+	case "insurance_carrier":
+		return testData.InsuranceCarrier
+	case "policy_number":
+		return testData.PolicyNumber
+	case "group_number":
+		return testData.GroupNumber
+	case "member_id":
+		return testData.MemberID
 	default:
 		return nil
 	}
@@ -308,17 +350,46 @@ func (r *testDataRepository) SetColumnValue(
 	value *string,
 ) error {
 	switch columnName {
-	case "col1":
-		testData.Col1 = value
-	case "col2":
-		testData.Col2 = value
-	case "col3":
-		testData.Col3 = value
-	case "col4":
-		testData.Col4 = value
-	case "col5":
-		testData.Col5 = value
-	// Add more cases as needed for other columns
+	case "first_name":
+		testData.FirstName = value
+	case "last_name":
+		testData.LastName = value
+	case "email":
+		testData.Email = value
+	case "phone":
+		testData.Phone = value
+	case "address_line_1":
+		testData.AddressLine1 = value
+	case "address_line_2":
+		testData.AddressLine2 = value
+	case "city":
+		testData.City = value
+	case "state":
+		testData.State = value
+	case "zip_code":
+		testData.ZipCode = value
+	case "country":
+		testData.Country = value
+	case "social_security_no":
+		testData.SocialSecurityNo = value
+	case "employer":
+		testData.Employer = value
+	case "job_title":
+		testData.JobTitle = value
+	case "department":
+		testData.Department = value
+	case "salary":
+		testData.Salary = value
+	case "insurance_plan_id":
+		testData.InsurancePlanID = value
+	case "insurance_carrier":
+		testData.InsuranceCarrier = value
+	case "policy_number":
+		testData.PolicyNumber = value
+	case "group_number":
+		testData.GroupNumber = value
+	case "member_id":
+		testData.MemberID = value
 	default:
 		return fmt.Errorf("unknown column name: %s", columnName)
 	}

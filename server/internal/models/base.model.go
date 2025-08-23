@@ -8,10 +8,10 @@ import (
 )
 
 type BaseUUIDModel struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid_v7()" json:"id"`
-	CreatedAt time.Time      `gorm:"autoCreateTime"                                    json:"createdAt"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                    json:"updatedAt"`
-	DeletedAt gorm.DeletedAt `gorm:"index"                                             json:"deletedAt"`
+	ID        uuid.UUID      `gorm:"type:uuid;primaryKey;default:uuidv7()" json:"id"`
+	CreatedAt time.Time      `gorm:"autoCreateTime"                        json:"createdAt"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime"                        json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index"                                 json:"deletedAt"`
 }
 
 type BaseModel struct {

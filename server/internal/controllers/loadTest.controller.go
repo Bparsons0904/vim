@@ -51,13 +51,34 @@ func GetKnownDateColumns() []string {
 		"birth_date",
 		"start_date", 
 		"end_date",
-		"plan_start_date",
-		"plan_end_date",
 		"created_at",
 		"updated_at", 
-		"effective_date",
-		"expiry_date",
-		"last_login_date",
+	}
+}
+
+// GetMeaningfulColumns returns the list of meaningful column names for demographics, employment, and insurance
+func GetMeaningfulColumns() []string {
+	return []string{
+		"first_name",
+		"last_name",
+		"email",
+		"phone",
+		"address_line_1",
+		"address_line_2",
+		"city",
+		"state",
+		"zip_code",
+		"country",
+		"social_security_no",
+		"employer",
+		"job_title",
+		"department",
+		"salary",
+		"insurance_plan_id",
+		"insurance_carrier",
+		"policy_number",
+		"group_number",
+		"member_id",
 	}
 }
 
@@ -66,12 +87,16 @@ func GetKnownDateColumns() []string {
 func (c *LoadTestController) CreateAndRunTest(ctx context.Context, req *CreateLoadTestRequest) (*LoadTest, error) {
 	log := c.log.Function("CreateAndRunTest")
 	
-	// Create the LoadTest record  
+	// Create the LoadTest record with fixed column structure
+	// We use a fixed structure: 5 date columns + 20 regular columns = 25 total
+	const FixedTotalColumns = 25
+	const FixedDateColumns = 5 // We populate all 5 available date columns
+	
 	loadTest := &LoadTest{
 		BaseUUIDModel: BaseUUIDModel{ID: uuid.New()},
 		Rows:          req.Rows,
-		Columns:       req.Columns,
-		DateColumns:   req.DateColumns,
+		Columns:       FixedTotalColumns,     // Override: always use 25 columns
+		DateColumns:   FixedDateColumns,      // Override: always populate 6 date columns
 		Method:        req.Method,
 		Status:        "running",
 	}
@@ -271,14 +296,17 @@ func (c *LoadTestController) generateRandomizedHeaders(totalColumns int, knownDa
 	// Add known date columns
 	allColumns = append(allColumns, knownDateColumns...)
 	
-	// Add regular columns (Col1, Col2, etc.)
-	regularColumnsNeeded := totalColumns - len(knownDateColumns)
-	if regularColumnsNeeded < 0 {
-		regularColumnsNeeded = 0
-	}
+	// Add meaningful columns (demographics, employment, insurance)
+	meaningfulColumns := GetMeaningfulColumns()
+	allColumns = append(allColumns, meaningfulColumns...)
 	
-	for i := 1; i <= regularColumnsNeeded; i++ {
-		allColumns = append(allColumns, fmt.Sprintf("col%d", i))
+	// Verify we have exactly the expected number of columns
+	if len(allColumns) != totalColumns {
+		c.log.Warn("column count mismatch", 
+			"expected", totalColumns, 
+			"actual", len(allColumns),
+			"dateColumns", len(knownDateColumns),
+			"meaningfulColumns", len(meaningfulColumns))
 	}
 	
 	// Shuffle the columns randomly
@@ -341,8 +369,8 @@ func (c *LoadTestController) generateDataRow(headers []string, selectedDateColum
 				row[i] = ""
 			}
 		} else {
-			// Generate random string data for regular columns
-			row[i] = c.generateStringValue()
+			// Generate appropriate data for meaningful columns
+			row[i] = c.generateMeaningfulColumnValue(header)
 		}
 	}
 	
@@ -365,17 +393,71 @@ func (c *LoadTestController) generateDateValue() string {
 	return "2023-01-15"
 }
 
-// generateStringValue creates random string data for regular columns
-func (c *LoadTestController) generateStringValue() string {
-	// Generate random strings of varying lengths
-	prefixes := []string{"data", "value", "item", "record", "entry", "field", "content", "text"}
-	numbers := []string{"001", "002", "123", "456", "789", "999", "abc", "xyz"}
+// generateMeaningfulColumnValue creates appropriate fake data for meaningful columns
+func (c *LoadTestController) generateMeaningfulColumnValue(columnName string) string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(1000))))
 	
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	prefix := prefixes[r.Intn(len(prefixes))]
-	number := numbers[r.Intn(len(numbers))]
-	
-	return fmt.Sprintf("%s_%s_%d", prefix, number, r.Intn(10000))
+	switch columnName {
+	case "first_name":
+		names := []string{"John", "Jane", "Michael", "Sarah", "David", "Lisa", "Robert", "Mary", "James", "Jennifer"}
+		return names[r.Intn(len(names))]
+	case "last_name":
+		surnames := []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"}
+		return surnames[r.Intn(len(surnames))]
+	case "email":
+		first := []string{"john", "jane", "mike", "sarah", "david", "lisa", "bob", "mary", "james", "jen"}
+		domains := []string{"gmail.com", "yahoo.com", "outlook.com", "company.com", "example.org"}
+		return fmt.Sprintf("%s%d@%s", first[r.Intn(len(first))], r.Intn(999), domains[r.Intn(len(domains))])
+	case "phone":
+		return fmt.Sprintf("(%03d) %03d-%04d", r.Intn(800)+200, r.Intn(800)+200, r.Intn(10000))
+	case "address_line_1":
+		numbers := []int{123, 456, 789, 1011, 1234, 5678}
+		streets := []string{"Main St", "Oak Ave", "First St", "Park Blvd", "Elm St", "Cedar Ave"}
+		return fmt.Sprintf("%d %s", numbers[r.Intn(len(numbers))], streets[r.Intn(len(streets))])
+	case "address_line_2":
+		if r.Intn(3) == 0 { // 33% chance of having apartment/unit
+			return fmt.Sprintf("Apt %d", r.Intn(999)+1)
+		}
+		return "" // Often empty
+	case "city":
+		cities := []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "Austin"}
+		return cities[r.Intn(len(cities))]
+	case "state":
+		states := []string{"CA", "TX", "NY", "FL", "IL", "PA", "OH", "GA", "NC", "MI"}
+		return states[r.Intn(len(states))]
+	case "zip_code":
+		return fmt.Sprintf("%05d", r.Intn(99999))
+	case "country":
+		countries := []string{"United States", "Canada", "Mexico", "United Kingdom", "Germany", "France", "Japan", "Australia"}
+		return countries[r.Intn(len(countries))]
+	case "social_security_no":
+		return fmt.Sprintf("***-**-%04d", r.Intn(10000)) // Masked for privacy
+	case "employer":
+		companies := []string{"Acme Corp", "Tech Solutions", "Global Industries", "Metro Systems", "Alpha Enterprises", "Beta LLC", "Gamma Inc", "Delta Group"}
+		return companies[r.Intn(len(companies))]
+	case "job_title":
+		titles := []string{"Software Engineer", "Manager", "Analyst", "Coordinator", "Specialist", "Director", "Associate", "Consultant", "Administrator"}
+		return titles[r.Intn(len(titles))]
+	case "department":
+		departments := []string{"Engineering", "Sales", "Marketing", "HR", "Finance", "Operations", "IT", "Customer Service", "Legal"}
+		return departments[r.Intn(len(departments))]
+	case "salary":
+		return fmt.Sprintf("$%d", (r.Intn(100)+40)*1000) // $40k to $140k
+	case "insurance_plan_id":
+		return fmt.Sprintf("PLAN-%03d", r.Intn(999)+1)
+	case "insurance_carrier":
+		carriers := []string{"Blue Cross Blue Shield", "Aetna", "Cigna", "UnitedHealthcare", "Humana", "Kaiser Permanente", "Anthem"}
+		return carriers[r.Intn(len(carriers))]
+	case "policy_number":
+		return fmt.Sprintf("POL-%d-%d", r.Intn(9999)+1000, r.Intn(999999)+100000)
+	case "group_number":
+		return fmt.Sprintf("GRP%03d", r.Intn(999)+1)
+	case "member_id":
+		return fmt.Sprintf("MEM%d%03d", r.Intn(99)+10, r.Intn(999)+1)
+	default:
+		// Fallback for unknown columns
+		return fmt.Sprintf("data_%d", r.Intn(9999))
+	}
 }
 
 // parseAndValidateCSVWithProgress reads the CSV file and validates only the populated date columns
@@ -461,6 +543,7 @@ func (c *LoadTestController) parseAndValidateCSVWithProgress(csvPath string, loa
 	if len(validationErrors) > 0 {
 		log.Warn("validation errors encountered", 
 			"errorCount", len(validationErrors),
+			"errorRate", fmt.Sprintf("%.2f%%", float64(len(validationErrors))/float64(rowCount)*100),
 			"firstFewErrors", validationErrors[:min(5, len(validationErrors))])
 	}
 	
@@ -480,18 +563,18 @@ func (c *LoadTestController) parseAndValidateRow(record []string, headers []stri
 		
 		value := record[i]
 		
-		// Handle date columns with validation
+		// Handle date columns with validation and normalization
 		if c.isKnownDateColumn(header, knownDateColumns) {
-			// Only validate if the value is not empty
-			if value != "" {
-				if !c.validateDateValue(value) {
-					validationErrors = append(validationErrors, fmt.Sprintf("invalid date in %s: %s", header, value))
-				}
-			}
-			
-			// Set the value regardless of validation (store what we got)
+			// Set the value with validation and normalization
 			if err := c.setDateColumnValue(data, header, value); err != nil {
 				validationErrors = append(validationErrors, fmt.Sprintf("failed to set %s: %v", header, err))
+			}
+			
+			// Additional validation reporting for non-empty values
+			if value != "" {
+				if _, isValid := c.validateAndNormalizeDateValue(value); !isValid {
+					validationErrors = append(validationErrors, fmt.Sprintf("invalid date in %s: %s", header, value))
+				}
 			}
 		} else {
 			// Handle regular columns (no validation needed)
@@ -518,18 +601,43 @@ func (c *LoadTestController) isKnownDateColumn(columnName string, knownDateColum
 	return false
 }
 
-// validateDateValue validates a date string using our date utils
+// validateAndNormalizeDateValue validates and normalizes a date string to ISO8601 format with UTC timezone
+func (c *LoadTestController) validateAndNormalizeDateValue(value string) (string, bool) {
+	if value == "" {
+		return "", true // Empty values are valid
+	}
+	
+	result := c.dateUtils.GetValidator().ValidateAndConvert(value)
+	if !result.IsValid {
+		return "", false
+	}
+	
+	// Convert to UTC and format as ISO8601 with timezone (RFC3339)
+	normalized := result.ParsedTime.UTC().Format(time.RFC3339)
+	return normalized, true
+}
+
+// validateDateValue validates a date string using our date utils (keeping for backward compatibility)
 func (c *LoadTestController) validateDateValue(value string) bool {
 	result := c.dateUtils.GetValidator().ValidateAndConvert(value)
 	return result.IsValid
 }
 
-// setDateColumnValue sets a date column value in the TestData struct
+// setDateColumnValue sets a date column value in the TestData struct with normalization
 func (c *LoadTestController) setDateColumnValue(data *TestData, columnName, value string) error {
-	// Handle empty values
+	// Handle empty values and normalize non-empty ones
 	var valuePtr *string
 	if value != "" {
-		valuePtr = &value
+		normalized, isValid := c.validateAndNormalizeDateValue(value)
+		if !isValid {
+			// Log the invalid date but store the original value for debugging
+			c.log.Warn("invalid date detected, storing original value", 
+				"column", columnName, 
+				"originalValue", value)
+			valuePtr = &value
+		} else {
+			valuePtr = &normalized
+		}
 	}
 	
 	switch columnName {
@@ -539,20 +647,10 @@ func (c *LoadTestController) setDateColumnValue(data *TestData, columnName, valu
 		data.StartDate = valuePtr
 	case "end_date":
 		data.EndDate = valuePtr
-	case "plan_start_date":
-		data.PlanStartDate = valuePtr
-	case "plan_end_date":
-		data.PlanEndDate = valuePtr
 	case "created_at":
 		data.CreatedAt = valuePtr
 	case "updated_at":
 		data.UpdatedAt = valuePtr
-	case "effective_date":
-		data.EffectiveDate = valuePtr
-	case "expiry_date":
-		data.ExpiryDate = valuePtr
-	case "last_login_date":
-		data.LastLoginDate = valuePtr
 	default:
 		return fmt.Errorf("unknown date column: %s", columnName)
 	}
@@ -567,29 +665,51 @@ func (c *LoadTestController) setRegularColumnValue(data *TestData, columnName, v
 		valuePtr = &value
 	}
 	
-	// Parse column number from colX format
-	if len(columnName) > 3 && columnName[:3] == "col" {
-		// For regular columns like col1, col2, etc.
-		// We'll use reflection or a switch statement based on the column number
-		switch columnName {
-		case "col1":
-			data.Col1 = valuePtr
-		case "col2":
-			data.Col2 = valuePtr
-		case "col3":
-			data.Col3 = valuePtr
-		case "col4":
-			data.Col4 = valuePtr
-		case "col5":
-			data.Col5 = valuePtr
-		// Add more cases as needed... this is where we'd handle col6 through col200
-		// For now, we'll just handle the first few and ignore the rest for the demo
-		default:
-			// For columns beyond col5, we'll just ignore them for now
-			// In a real implementation, you'd either extend the TestData model
-			// or use a dynamic approach like storing in a map
-			return nil
-		}
+	// Map meaningful column names to TestData fields
+	switch columnName {
+	case "first_name":
+		data.FirstName = valuePtr
+	case "last_name":
+		data.LastName = valuePtr
+	case "email":
+		data.Email = valuePtr
+	case "phone":
+		data.Phone = valuePtr
+	case "address_line_1":
+		data.AddressLine1 = valuePtr
+	case "address_line_2":
+		data.AddressLine2 = valuePtr
+	case "city":
+		data.City = valuePtr
+	case "state":
+		data.State = valuePtr
+	case "zip_code":
+		data.ZipCode = valuePtr
+	case "country":
+		data.Country = valuePtr
+	case "social_security_no":
+		data.SocialSecurityNo = valuePtr
+	case "employer":
+		data.Employer = valuePtr
+	case "job_title":
+		data.JobTitle = valuePtr
+	case "department":
+		data.Department = valuePtr
+	case "salary":
+		data.Salary = valuePtr
+	case "insurance_plan_id":
+		data.InsurancePlanID = valuePtr
+	case "insurance_carrier":
+		data.InsuranceCarrier = valuePtr
+	case "policy_number":
+		data.PolicyNumber = valuePtr
+	case "group_number":
+		data.GroupNumber = valuePtr
+	case "member_id":
+		data.MemberID = valuePtr
+	default:
+		// Unknown column - log warning but continue
+		return fmt.Errorf("unknown meaningful column: %s", columnName)
 	}
 	return nil
 }
@@ -612,7 +732,7 @@ func (c *LoadTestController) insertTestDataWithProgress(ctx context.Context, tes
 	switch method {
 	case "brute_force":
 		return c.insertBruteForceWithProgress(ctx, testData, startTime, testID)
-	case "optimized":
+	case "batched", "optimized": // Support both names for backward compatibility
 		return c.insertOptimizedWithProgress(ctx, testData, startTime, testID)
 	default:
 		return 0, fmt.Errorf("unknown insertion method: %s", method)
