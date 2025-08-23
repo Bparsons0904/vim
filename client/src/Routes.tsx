@@ -10,6 +10,7 @@ const ProfilePage = lazy(() => import("@pages/Profile/Profile"));
 const DashboardPage = lazy(() => import("@pages/Dashboard/Dashboard"));
 const LandingPage = lazy(() => import("@pages/Landing/Landing"));
 const WorkstationPage = lazy(() => import("@pages/Workstation/Workstation"));
+const LoadTestPage = lazy(() => import("@pages/LoadTest/LoadTest"));
 
 const ProtectedRoute = (Component: Component) => {
   return () => {
@@ -35,6 +36,7 @@ export const Routes: Component = () => {
       <Route path="/dashboard" component={ProtectedRoute(DashboardPage)} />
       <Route path="/profile" component={ProtectedRoute(ProfilePage)} />
       <Route path="/workstation" component={ProtectedRoute(WorkstationPage)} />
+      <Route path="/loadtest" component={ProtectedRoute(LoadTestPage)} />
     </>
   );
 };

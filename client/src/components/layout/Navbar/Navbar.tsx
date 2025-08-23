@@ -40,6 +40,15 @@ export const NavBar: Component = () => {
                   </li>
                   <li class={styles.navbarItem}>
                     <A
+                      href="/loadtest"
+                      class={styles.navbarLink}
+                      activeClass={styles.active}
+                    >
+                      Load Test
+                    </A>
+                  </li>
+                  <li class={styles.navbarItem}>
+                    <A
                       href="/profile"
                       class={styles.navbarLink}
                       activeClass={styles.active}

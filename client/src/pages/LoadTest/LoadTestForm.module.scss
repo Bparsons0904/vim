@@ -1,0 +1,206 @@
+@use "../../styles/variables" as *;
+@use "../../styles/colors" as *;
+@use "../../styles/mixins" as *;
+
+.formCard {
+  h2 {
+    margin-bottom: $spacing-lg;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-default;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.section {
+  h3 {
+    margin-bottom: $spacing-md;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-medium;
+    color: $text-default;
+  }
+}
+
+.presetButtons {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.customInput {
+  margin-bottom: $spacing-sm;
+  
+  .numberInput {
+    max-width: 200px;
+  }
+}
+
+.currentValue {
+  font-size: $font-size-sm;
+  color: $text-muted;
+  padding: $spacing-sm;
+  background: $bg-subtle;
+  border-radius: $border-radius-sm;
+  border-left: 3px solid $color-primary-500;
+}
+
+.sliderGroup {
+  margin-bottom: $spacing-md;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.sliderLabel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  
+  span {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $text-default;
+  }
+}
+
+.slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: $bg-subtle;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: 1;
+  }
+  
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: $color-primary-500;
+    cursor: pointer;
+  }
+  
+  &::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: $color-primary-500;
+    cursor: pointer;
+    border: none;
+  }
+}
+
+.sliderRange {
+  display: flex;
+  justify-content: space-between;
+  font-size: $font-size-xs;
+  color: $text-light;
+  margin-top: $spacing-xs;
+}
+
+.methodOptions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.radioOption {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  border: 2px solid $border-default;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: $color-primary-300;
+    background: $bg-subtle;
+  }
+  
+  input[type="radio"] {
+    margin-top: 2px;
+    
+    &:checked + .radioContent {
+      strong {
+        color: $color-primary-500;
+      }
+    }
+  }
+  
+  &:has(input:checked) {
+    border-color: $color-primary-500;
+    background: $bg-primary-subtle;
+  }
+}
+
+.radioContent {
+  flex: 1;
+  
+  strong {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: $font-weight-medium;
+    color: $text-default;
+    transition: color 0.2s ease;
+  }
+  
+  p {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin: 0;
+  }
+}
+
+.summary {
+  padding: $spacing-md;
+  background: $bg-subtle;
+  border-radius: $border-radius-md;
+  border: 1px solid $border-default;
+  
+  h3 {
+    margin-bottom: $spacing-md;
+  }
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $spacing-sm;
+}
+
+.summaryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-xs 0;
+}
+
+.summaryLabel {
+  font-size: $font-size-sm;
+  color: $text-muted;
+}
+
+.summaryValue {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $text-default;
+}
+
+.submitButton {
+  margin-top: $spacing-md;
+  width: 100%;
+}

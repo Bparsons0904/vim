@@ -15,6 +15,12 @@ export const queryKeys = {
   sessions: () => [...queryKeys.all(), 'sessions'] as const,
   session: (id: string) => [...queryKeys.sessions(), 'session', id] as const,
 
+  // LoadTest-related queries
+  loadTests: () => [...queryKeys.all(), 'loadtests'] as const,
+  loadTest: (id: string) => [...queryKeys.loadTests(), 'loadtest', id] as const,
+  loadTestHistory: (filters?: Record<string, unknown>) => 
+    [...queryKeys.loadTests(), 'history', filters] as const,
+
   // Pagination helper
   paginated: (baseKey: readonly unknown[], page: number, limit: number) =>
     [...baseKey, 'paginated', { page, limit }] as const,
@@ -38,6 +44,12 @@ export const invalidationHelpers = {
   
   // Invalidate specific user data
   invalidateUser: (id?: string) => queryKeys.user(id),
+  
+  // Invalidate all loadtest-related queries
+  invalidateLoadTests: () => queryKeys.loadTests(),
+  
+  // Invalidate specific loadtest data
+  invalidateLoadTest: (id: string) => queryKeys.loadTest(id),
   
   // Invalidate all API queries
   invalidateAll: () => queryKeys.all(),

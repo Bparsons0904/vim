@@ -1,0 +1,57 @@
+@use "../../styles/variables" as *;
+@use "../../styles/colors" as *;
+@use "../../styles/mixins" as *;
+
+.loadTest {
+  min-height: 100vh;
+  background: $bg-subtle;
+  padding: $spacing-lg 0;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 $spacing-lg;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: $spacing-xl;
+
+  h1 {
+    font-size: $font-size-3xl;
+    font-weight: $font-weight-bold;
+    color: $text-default;
+    margin-bottom: $spacing-sm;
+  }
+
+  p {
+    font-size: $font-size-lg;
+    color: $text-muted;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-xl;
+
+  @include breakpoint(md) {
+    grid-template-columns: 1fr;
+    gap: $spacing-lg;
+  }
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
