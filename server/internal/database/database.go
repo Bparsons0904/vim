@@ -17,10 +17,11 @@ import (
 type CacheClient valkey.Client
 
 type Cache struct {
-	General CacheClient
-	Session CacheClient
-	User    CacheClient
-	Events  CacheClient
+	General  CacheClient
+	Session  CacheClient
+	User     CacheClient
+	Events   CacheClient
+	LoadTest CacheClient
 }
 
 type DB struct {
@@ -160,6 +161,10 @@ func (s *DB) Close() (err error) {
 		s.Cache.Events.Close()
 	}
 
+	if s.Cache.LoadTest != nil {
+		s.Cache.LoadTest.Close()
+	}
+
 	return
 }
 
@@ -182,6 +187,7 @@ func (s *DB) FlushAllCaches() error {
 		{s.Cache.Session, "Session"},
 		{s.Cache.User, "User"},
 		{s.Cache.Events, "Events"},
+		{s.Cache.LoadTest, "LoadTest"},
 	}
 
 	for _, cache := range cacheClients {
