@@ -5,6 +5,18 @@ import "github.com/google/uuid"
 type TestData struct {
 	BaseUUIDModel
 	LoadTestID uuid.UUID `gorm:"type:uuid;not null;index" json:"loadTestId"`
+	// Known date columns - these will be validated for date formats
+	BirthDate      *string `gorm:"type:varchar(255)"               json:"birth_date"`
+	StartDate      *string `gorm:"type:varchar(255)"               json:"start_date"`
+	EndDate        *string `gorm:"type:varchar(255)"               json:"end_date"`
+	PlanStartDate  *string `gorm:"type:varchar(255)"               json:"plan_start_date"`
+	PlanEndDate    *string `gorm:"type:varchar(255)"               json:"plan_end_date"`
+	CreatedAt      *string `gorm:"type:varchar(255)"               json:"created_at"`
+	UpdatedAt      *string `gorm:"type:varchar(255)"               json:"updated_at"`
+	EffectiveDate  *string `gorm:"type:varchar(255)"               json:"effective_date"`
+	ExpiryDate     *string `gorm:"type:varchar(255)"               json:"expiry_date"`
+	LastLoginDate  *string `gorm:"type:varchar(255)"               json:"last_login_date"`
+	// Regular string columns (200 total)
 	Col1       *string `gorm:"type:varchar(255)"               json:"col1"`
 	Col2       *string `gorm:"type:varchar(255)"               json:"col2"`
 	Col3       *string `gorm:"type:varchar(255)"               json:"col3"`
