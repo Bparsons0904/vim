@@ -7,6 +7,7 @@ import { useAuth } from "@context/AuthContext";
 import { Form } from "@components/common/forms/Form/Form";
 import { useForm } from "@context/FormContext";
 import { validators } from "../../utils/validation";
+import { RegisterRequest } from "../../types/User";
 
 const Register: Component = () => {
   const { register } = useAuth();
@@ -95,13 +96,7 @@ const Register: Component = () => {
     // Create registration payload without confirmPassword
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { confirmPassword, ...registrationData } = formData;
-    register(registrationData as {
-      firstName: string;
-      lastName: string;
-      email: string;
-      username: string;
-      password: string;
-    });
+    register(registrationData as RegisterRequest);
   };
 
   return (

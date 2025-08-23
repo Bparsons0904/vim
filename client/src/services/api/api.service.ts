@@ -3,7 +3,7 @@ import axios, { AxiosError, AxiosResponse } from "axios";
 import { ApiResponse, ApiClientError, NetworkError, RequestConfig } from "./apiTypes";
 
 export const apiClient = axios.create({
-  baseURL: env.apiUrl + "/api/",
+  baseURL: env.apiUrl + "/api",
   timeout: 10000,
   headers: {
     Accept: "application/json",
@@ -63,7 +63,7 @@ export const apiRequest = async <T>(
   try {
     const response = await apiClient.request({
       method,
-      url: `/${url}`,
+      url,
       data,
       ...config,
     });

@@ -1,12 +1,4 @@
 import { initializeTokenInterceptor } from "@services/api/api.service";
-import { 
-  useCurrentUser, 
-  useLoginUser, 
-  useRegisterUser, 
-  useLogoutUser,
-  LoginCredentials,
-  RegisterData 
-} from "@services/api/endpoints/users.api";
 import { useNavigate } from "@solidjs/router";
 import {
   createContext,
@@ -18,14 +10,15 @@ import {
   Show,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { User } from "src/types/User";
+import { User, LoginRequest, RegisterRequest } from "src/types/User";
+import { apiClient } from "@services/api/client";
 
 type AuthContextValue = {
   isAuthenticated: Accessor<boolean | null>;
   user: User | null;
   authToken: Accessor<string | null>;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  login: (credentials: LoginRequest) => Promise<void>;
+  register: (userData: RegisterRequest) => Promise<void>;
   logout: () => void;
 };
 
@@ -33,46 +26,44 @@ const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
 export function AuthProvider(props: { children: JSX.Element }) {
   const navigate = useNavigate();
-  const [user, setUser] = createStore(null);
-  const [isAuthenticated, setIsAuthenticated] = createSignal(null);
+  const [user, setUser] = createStore<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = createSignal<boolean | null>(null);
   const [authToken, setAuthToken] = createSignal<string | null>(null);
 
   initializeTokenInterceptor(setAuthToken);
 
-  const getUserResponse = useCurrentUser();
+  const meQuery = apiClient.auth.me();
 
   createEffect(() => {
-    // Handle the auth state based on results
-    if (getUserResponse.isSuccess && getUserResponse.data?.user) {
-      setUser(getUserResponse.data.user);
+    if (meQuery.isSuccess && meQuery.data?.user) {
+      setUser(meQuery.data.user);
       setIsAuthenticated(true);
     } else if (
-      getUserResponse.isError ||
-      (getUserResponse.isSuccess && !getUserResponse.data?.user)
+      meQuery.isError ||
+      (meQuery.isSuccess && !meQuery.data?.user)
     ) {
       setIsAuthenticated(false);
       setUser(null);
     }
   });
 
-  const loginMutation = useLoginUser();
-  const registerMutation = useRegisterUser();
-  const logoutMutation = useLogoutUser();
-
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginRequest) => {
     try {
-      const user = await loginMutation.mutateAsync(credentials);
-      if (!user) return;
-      setUser(user);
-      setIsAuthenticated(!!user);
+      const loginMutation = apiClient.auth.login()();
+      const result = await loginMutation.mutateAsync(credentials);
+      if (!result.user) return;
+      setUser(result.user);
+      setAuthToken(result.token);
+      setIsAuthenticated(!!result.user);
       navigate("/");
     } catch (error) {
       console.error('Login failed:', error);
     }
   };
 
-  const register = async (userData: RegisterData) => {
+  const register = async (userData: RegisterRequest) => {
     try {
+      const registerMutation = apiClient.users.create()();
       const user = await registerMutation.mutateAsync(userData);
       if (!user) return;
       setUser(user);
@@ -85,7 +76,8 @@ export function AuthProvider(props: { children: JSX.Element }) {
 
   const logout = async () => {
     try {
-      await logoutMutation.mutateAsync({});
+      const logoutMutation = apiClient.auth.logout()();
+      await logoutMutation.mutateAsync();
       setUser(null);
       setIsAuthenticated(false);
       setAuthToken(null);
@@ -109,7 +101,6 @@ export function AuthProvider(props: { children: JSX.Element }) {
         register,
         logout,
         authToken,
-        // setAuthToken,
       }}
     >
       <Show when={isAuthenticated() !== null}>{props.children}</Show>
@@ -120,3 +111,4 @@ export function AuthProvider(props: { children: JSX.Element }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+

@@ -1,17 +1,34 @@
-export interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  login: string;
-  email: string;
-  isAdmin: boolean;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string;
-}
+import { z } from 'zod';
 
-export interface LoginRequest {
-  login: string;
-  password: string;
-}
+export const User = z.object({
+  id: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  displayName: z.string(),
+  login: z.string(),
+  email: z.string().email(),
+  isAdmin: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  deletedAt: z.string().datetime().optional(),
+});
+
+export type User = z.infer<typeof User>;
+
+export const LoginRequest = z.object({
+  login: z.string(),
+  password: z.string(),
+});
+
+export type LoginRequest = z.infer<typeof LoginRequest>;
+
+export const RegisterRequest = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  displayName: z.string(),
+  login: z.string(),
+  email: z.string().email(),
+  password: z.string(),
+});
+
+export type RegisterRequest = z.infer<typeof RegisterRequest>;
