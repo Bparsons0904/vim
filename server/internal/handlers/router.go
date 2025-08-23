@@ -21,6 +21,7 @@ func Router(router fiber.Router, app *app.App) (err error) {
 	api := router.Group("/api")
 	HealthHandler(api, app.Config)
 	NewUserHandler(*app, api).Register()
+	NewLoadTestHandler(*app, api).Register()
 
 	return nil
 }

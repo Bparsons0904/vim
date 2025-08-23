@@ -26,6 +26,9 @@ export const MessageType = {
   AUTH_SUCCESS: "auth_success",
   AUTH_FAILURE: "auth_failure",
   INVALIDATE_CACHE: "invalidateCache",
+  LOADTEST_PROGRESS: "loadtest_progress",
+  LOADTEST_COMPLETE: "loadtest_complete",
+  LOADTEST_ERROR: "loadtest_error",
 } as const;
 
 export type ChannelType = "system" | "user";
@@ -61,6 +64,15 @@ interface WebSocketContextValue {
   onCacheInvalidation: (
     callback: (resourceType: string, resourceId: string) => void,
   ) => () => void;
+  onLoadTestProgress: (
+    callback: (testId: string, data: Record<string, unknown>) => void,
+  ) => () => void;
+  onLoadTestComplete: (
+    callback: (testId: string, data: Record<string, unknown>) => void,
+  ) => () => void;
+  onLoadTestError: (
+    callback: (testId: string, error: string) => void,
+  ) => () => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue>(
@@ -86,6 +98,14 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
   // Cache invalidation callbacks
   const [cacheInvalidationCallbacks, setCacheInvalidationCallbacks] =
     createSignal<Array<(resourceType: string, resourceId: string) => void>>([]);
+
+  // Load test callbacks
+  const [loadTestProgressCallbacks, setLoadTestProgressCallbacks] =
+    createSignal<Array<(testId: string, data: Record<string, unknown>) => void>>([]);
+  const [loadTestCompleteCallbacks, setLoadTestCompleteCallbacks] =
+    createSignal<Array<(testId: string, data: Record<string, unknown>) => void>>([]);
+  const [loadTestErrorCallbacks, setLoadTestErrorCallbacks] =
+    createSignal<Array<(testId: string, error: string) => void>>([]);
 
   const log = (message: string, ...args: unknown[]) => {
     // if (!debug) {
@@ -154,6 +174,49 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
               ? message.data.reason
               : "Authentication failed",
           );
+          break;
+
+        case MessageType.LOADTEST_PROGRESS:
+          if (message.data?.testId) {
+            const testId = message.data.testId as string;
+            log("Load test progress received:", testId, message.data);
+            loadTestProgressCallbacks().forEach((callback) => {
+              try {
+                callback(testId, message.data!);
+              } catch (error) {
+                log("Load test progress callback error:", error);
+              }
+            });
+          }
+          break;
+
+        case MessageType.LOADTEST_COMPLETE:
+          if (message.data?.testId) {
+            const testId = message.data.testId as string;
+            log("Load test complete received:", testId, message.data);
+            loadTestCompleteCallbacks().forEach((callback) => {
+              try {
+                callback(testId, message.data!);
+              } catch (error) {
+                log("Load test complete callback error:", error);
+              }
+            });
+          }
+          break;
+
+        case MessageType.LOADTEST_ERROR:
+          if (message.data?.testId && message.data?.error) {
+            const testId = message.data.testId as string;
+            const error = message.data.error as string;
+            log("Load test error received:", testId, error);
+            loadTestErrorCallbacks().forEach((callback) => {
+              try {
+                callback(testId, error);
+              } catch (error) {
+                log("Load test error callback error:", error);
+              }
+            });
+          }
           break;
 
         default:
@@ -360,6 +423,45 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
     };
   };
 
+  const onLoadTestProgress = (
+    callback: (testId: string, data: Record<string, unknown>) => void,
+  ) => {
+    setLoadTestProgressCallbacks((prev) => [...prev, callback]);
+
+    // Return cleanup function
+    return () => {
+      setLoadTestProgressCallbacks((prev) =>
+        prev.filter((cb) => cb !== callback),
+      );
+    };
+  };
+
+  const onLoadTestComplete = (
+    callback: (testId: string, data: Record<string, unknown>) => void,
+  ) => {
+    setLoadTestCompleteCallbacks((prev) => [...prev, callback]);
+
+    // Return cleanup function
+    return () => {
+      setLoadTestCompleteCallbacks((prev) =>
+        prev.filter((cb) => cb !== callback),
+      );
+    };
+  };
+
+  const onLoadTestError = (
+    callback: (testId: string, error: string) => void,
+  ) => {
+    setLoadTestErrorCallbacks((prev) => [...prev, callback]);
+
+    // Return cleanup function
+    return () => {
+      setLoadTestErrorCallbacks((prev) =>
+        prev.filter((cb) => cb !== callback),
+      );
+    };
+  };
+
   const contextValue: WebSocketContextValue = {
     connectionState,
     isConnected,
@@ -369,6 +471,9 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
     sendMessage,
     reconnect,
     onCacheInvalidation,
+    onLoadTestProgress,
+    onLoadTestComplete,
+    onLoadTestError,
   };
 
   return (

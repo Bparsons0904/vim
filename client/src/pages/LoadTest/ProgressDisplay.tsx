@@ -2,6 +2,7 @@ import { Component, createSignal, createEffect, onCleanup, Show } from "solid-js
 import { Card } from "@components/common/ui/Card/Card";
 import styles from "./ProgressDisplay.module.scss";
 import { LoadTestResult } from "./LoadTest";
+import { useWebSocket } from "@context/WebSocketContext";
 
 interface ProgressDisplayProps {
   test: LoadTestResult;
@@ -20,6 +21,8 @@ interface ProgressState {
 }
 
 export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
+  const { onLoadTestProgress, onLoadTestComplete, onLoadTestError } = useWebSocket();
+  
   const [progress, setProgress] = createSignal<ProgressState>({
     phase: 'csv_generation',
     overallProgress: 0,
@@ -32,127 +35,78 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
   });
 
   const [startTime, setStartTime] = createSignal(Date.now());
-  const [intervalId, setIntervalId] = createSignal<NodeJS.Timeout | null>(null);
 
-  // Mock progress simulation for now - will be replaced with WebSocket updates
+  // Real WebSocket-based progress updates
   createEffect(() => {
     if (props.test.status === 'running') {
       setStartTime(Date.now());
-      simulateProgress();
+
+      // Register WebSocket progress handlers
+      const unsubscribeProgress = onLoadTestProgress((testId, data) => {
+        if (testId === props.test.id) {
+          setProgress({
+            phase: data.phase as ProgressState['phase'] || 'csv_generation',
+            overallProgress: Number(data.overallProgress) || 0,
+            phaseProgress: Number(data.phaseProgress) || 0,
+            currentPhase: String(data.currentPhase) || 'Processing...',
+            rowsProcessed: Number(data.rowsProcessed) || 0,
+            rowsPerSecond: Number(data.rowsPerSecond) || 0,
+            eta: String(data.eta) || 'Calculating...',
+            message: String(data.message) || 'Processing...'
+          });
+        }
+      });
+
+      const unsubscribeComplete = onLoadTestComplete((testId, data) => {
+        if (testId === props.test.id) {
+          const completedTest: LoadTestResult = {
+            ...props.test,
+            status: 'completed',
+            csvGenTime: Number(data.csvGenTime),
+            parseTime: Number(data.parseTime),
+            insertTime: Number(data.insertTime),
+            totalTime: Number(data.totalTime)
+          };
+          props.onTestComplete(completedTest);
+          
+          setProgress(prev => ({
+            ...prev,
+            phase: 'completed',
+            overallProgress: 100,
+            phaseProgress: 100,
+            currentPhase: 'Test Completed',
+            message: `Successfully processed ${props.test.rows.toLocaleString()} rows!`
+          }));
+        }
+      });
+
+      const unsubscribeError = onLoadTestError((testId, error) => {
+        if (testId === props.test.id) {
+          const errorTest: LoadTestResult = {
+            ...props.test,
+            status: 'failed',
+            errorMessage: error
+          };
+          props.onTestComplete(errorTest);
+          
+          setProgress(prev => ({
+            ...prev,
+            phase: 'failed',
+            message: 'Test failed. Check error details below.'
+          }));
+        }
+      });
+
+      // Cleanup function
+      onCleanup(() => {
+        unsubscribeProgress();
+        unsubscribeComplete();
+        unsubscribeError();
+      });
     }
   });
 
-  const simulateProgress = () => {
-    let currentProgress = 0;
-    let phase: ProgressState['phase'] = 'csv_generation';
-    
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime();
-      currentProgress += Math.random() * 5 + 1; // Simulate variable progress
-      
-      if (currentProgress >= 100) {
-        currentProgress = 100;
-        phase = 'completed';
-      } else if (currentProgress > 85) {
-        phase = 'insertion';
-      } else if (currentProgress > 25) {
-        phase = 'parsing';
-      } else {
-        phase = 'csv_generation';
-      }
 
-      const rowsProcessed = Math.floor((currentProgress / 100) * props.test.rows);
-      const rowsPerSecond = elapsed > 0 ? Math.floor((rowsProcessed / elapsed) * 1000) : 0;
-      const remainingRows = props.test.rows - rowsProcessed;
-      const etaSeconds = rowsPerSecond > 0 ? Math.ceil(remainingRows / rowsPerSecond) : 0;
-      
-      setProgress({
-        phase,
-        overallProgress: currentProgress,
-        phaseProgress: getPhaseProgress(phase, currentProgress),
-        currentPhase: getPhaseLabel(phase),
-        rowsProcessed,
-        rowsPerSecond,
-        eta: formatETA(etaSeconds),
-        message: getPhaseMessage(phase, rowsProcessed)
-      });
-
-      if (currentProgress >= 100) {
-        // Test completed
-        const completedTest: LoadTestResult = {
-          ...props.test,
-          status: 'completed',
-          csvGenTime: Math.floor(Math.random() * 5000) + 1000,
-          parseTime: Math.floor(Math.random() * 3000) + 500,
-          insertTime: Math.floor(Math.random() * 10000) + 2000,
-          totalTime: elapsed
-        };
-        props.onTestComplete(completedTest);
-        
-        if (intervalId()) {
-          clearInterval(intervalId()!);
-          setIntervalId(null);
-        }
-      }
-    };
-
-    const id = setInterval(updateProgress, 500);
-    setIntervalId(id);
-  };
-
-  const getPhaseProgress = (phase: ProgressState['phase'], overall: number): number => {
-    switch (phase) {
-      case 'csv_generation':
-        return Math.min(overall * 4, 100); // 0-25% overall = 0-100% phase
-      case 'parsing':
-        return Math.min((overall - 25) * (100 / 60), 100); // 25-85% overall = 0-100% phase
-      case 'insertion':
-        return Math.min((overall - 85) * (100 / 15), 100); // 85-100% overall = 0-100% phase
-      default:
-        return 100;
-    }
-  };
-
-  const getPhaseLabel = (phase: ProgressState['phase']): string => {
-    switch (phase) {
-      case 'csv_generation':
-        return 'Generating CSV Data';
-      case 'parsing':
-        return 'Parsing and Validating';
-      case 'insertion':
-        return 'Inserting into Database';
-      case 'completed':
-        return 'Test Completed';
-      case 'failed':
-        return 'Test Failed';
-      default:
-        return 'Unknown Phase';
-    }
-  };
-
-  const getPhaseMessage = (phase: ProgressState['phase'], rowsProcessed: number): string => {
-    switch (phase) {
-      case 'csv_generation':
-        return 'Generating realistic test data with faker library...';
-      case 'parsing':
-        return 'Validating date formats and parsing CSV data...';
-      case 'insertion':
-        return `Inserting data using ${props.test.method === 'optimized' ? 'batch' : 'single row'} method...`;
-      case 'completed':
-        return `Successfully processed ${rowsProcessed.toLocaleString()} rows!`;
-      case 'failed':
-        return 'Test failed. Check error details below.';
-      default:
-        return 'Processing...';
-    }
-  };
-
-  const formatETA = (seconds: number): string => {
-    if (seconds <= 0) return 'Done';
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`;
-    return `${Math.ceil(seconds / 3600)}h`;
-  };
 
   const getProgressBarColor = (): string => {
     if (progress().phase === 'failed') return 'var(--color-error)';
@@ -160,11 +114,6 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
     return 'var(--color-primary)';
   };
 
-  onCleanup(() => {
-    if (intervalId()) {
-      clearInterval(intervalId()!);
-    }
-  });
 
   return (
     <Card class={styles.progressCard}>

@@ -9,43 +9,27 @@ export interface StartLoadTestRequest {
 }
 
 export interface StartLoadTestResponse {
-  success: boolean;
-  data: {
-    testId: string;
-    test: LoadTestResult;
-  };
+  message: string;
+  loadTest: LoadTestResult;
 }
 
 export interface GetLoadTestResponse {
-  success: boolean;
-  data: {
-    test: LoadTestResult;
-  };
+  message: string;
+  loadTest: LoadTestResult;
 }
 
 export interface GetLoadTestHistoryResponse {
-  success: boolean;
-  data: {
-    tests: LoadTestResult[];
-    pagination?: {
-      page: number;
-      limit: number;
-      total: number;
-      hasMore: boolean;
-    };
-  };
+  message: string;
+  loadTests: LoadTestResult[];
 }
 
 export interface DeleteLoadTestResponse {
-  success: boolean;
-  data: {
-    message: string;
-  };
+  message: string;
 }
 
 // Start a new load test
 export const startLoadTest = async (config: LoadTestConfig): Promise<StartLoadTestResponse> => {
-  return postApi<StartLoadTestResponse, StartLoadTestRequest>('loadtest/start', {
+  return postApi<StartLoadTestResponse, StartLoadTestRequest>('load-tests', {
     rows: config.rows,
     columns: config.columns,
     dateColumns: config.dateColumns,
@@ -55,7 +39,7 @@ export const startLoadTest = async (config: LoadTestConfig): Promise<StartLoadTe
 
 // Get status of a specific load test
 export const getLoadTestStatus = async (testId: string): Promise<GetLoadTestResponse> => {
-  return getApi<GetLoadTestResponse>(`loadtest/${testId}`);
+  return getApi<GetLoadTestResponse>(`load-tests/${testId}`);
 };
 
 // Get load test history
@@ -65,12 +49,12 @@ export const getLoadTestHistory = async (params?: {
   status?: 'running' | 'completed' | 'failed';
   method?: 'brute_force' | 'optimized';
 }): Promise<GetLoadTestHistoryResponse> => {
-  return getApi<GetLoadTestHistoryResponse>('loadtest', params);
+  return getApi<GetLoadTestHistoryResponse>('load-tests', params);
 };
 
 // Delete a load test and its data
 export const deleteLoadTest = async (testId: string): Promise<DeleteLoadTestResponse> => {
-  return deleteApi<DeleteLoadTestResponse>(`loadtest/${testId}`);
+  return deleteApi<DeleteLoadTestResponse>(`load-tests/${testId}`);
 };
 
 // WebSocket event types for real-time updates

@@ -11,6 +11,7 @@ import (
 	"server/internal/websockets"
 
 	userController "server/internal/controllers/users"
+	loadTestController "server/internal/controllers"
 )
 
 type App struct {
@@ -25,9 +26,12 @@ type App struct {
 
 	// Repositories
 	UserRepo repositories.UserRepository
+	LoadTestRepo repositories.LoadTestRepository
+	TestDataRepo repositories.TestDataRepository
 
 	// Controllers
 	UserController *userController.UserController
+	LoadTestController *loadTestController.LoadTestController
 }
 
 func New() (*App, error) {
@@ -50,15 +54,18 @@ func New() (*App, error) {
 
 	// Initialize repositories
 	userRepo := repositories.New(db)
-
-	// Initialize controllers with repositories and services
-	middleware := middleware.New(db, eventBus, config, userRepo)
-	userController := userController.New(eventBus, userRepo, config)
+	loadTestRepo := repositories.NewLoadTest(db)
+	testDataRepo := repositories.NewTestData(db)
 
 	websocket, err := websockets.New(db, eventBus, config)
 	if err != nil {
 		return &App{}, log.Err("failed to create websocket manager", err)
 	}
+
+	// Initialize controllers with repositories and services
+	middleware := middleware.New(db, eventBus, config, userRepo)
+	userController := userController.New(eventBus, userRepo, config)
+	loadTestController := loadTestController.NewLoadTestController(loadTestRepo, testDataRepo, websocket)
 
 	app := &App{
 		Database:           db,
@@ -66,7 +73,10 @@ func New() (*App, error) {
 		Middleware:         middleware,
 		TransactionService: transactionService,
 		UserRepo:           userRepo,
+		LoadTestRepo:       loadTestRepo,
+		TestDataRepo:       testDataRepo,
 		UserController:     userController,
+		LoadTestController: loadTestController,
 		Websocket:          websocket,
 		EventBus:           eventBus,
 	}
@@ -93,8 +103,11 @@ func (a *App) validate() error {
 		a.EventBus,
 		a.TransactionService,
 		a.UserController,
+		a.LoadTestController,
 		a.Middleware,
 		a.UserRepo,
+		a.LoadTestRepo,
+		a.TestDataRepo,
 	}
 
 	for _, check := range nilChecks {

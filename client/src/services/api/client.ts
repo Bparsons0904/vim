@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/solid-query';
+import { useQuery, useMutation, UseQueryOptions, UseMutationOptions } from '@tanstack/solid-query';
 import { apiRequest } from './api.service';
 import { apiContract } from './contract';
 import { z } from 'zod';
@@ -14,12 +14,12 @@ type Endpoints = {
 type Client<E extends Endpoints> = {
   [R in keyof E]: {
     [A in keyof E[R]]: E[R][A] extends { method: 'POST' | 'PUT' | 'PATCH' | 'DELETE' } ? 
-      E[R][A] extends { body: any } ?
+      E[R][A] extends { body: unknown } ?
         () => (options?: UseMutationOptions<z.infer<E[R][A]['response']>, unknown, z.infer<E[R][A]['body']>>) => 
           ReturnType<typeof useMutation<z.infer<E[R][A]['response']>, unknown, z.infer<E[R][A]['body']>>> :
         () => (options?: UseMutationOptions<z.infer<E[R][A]['response']>, unknown, void>) => 
           ReturnType<typeof useMutation<z.infer<E[R][A]['response']>, unknown, void>> :
-      E[R][A] extends { path: (id: any) => string } ? 
+      E[R][A] extends { path: (id: unknown) => string } ? 
         (params: Parameters<E[R][A]['path']>[0], options?: UseQueryOptions<z.infer<E[R][A]['response']>>) => 
           ReturnType<typeof useQuery<z.infer<E[R][A]['response']>>> :
         (options?: UseQueryOptions<z.infer<E[R][A]['response']>>) => 

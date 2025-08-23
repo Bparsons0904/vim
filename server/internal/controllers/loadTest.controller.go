@@ -13,7 +13,6 @@ import (
 	"server/internal/utils"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
@@ -22,17 +21,27 @@ type LoadTestController struct {
 	testDataRepo repositories.TestDataRepository
 	dateUtils    *utils.DateUtils
 	log          logger.Logger
+	wsManager    WSManager
+}
+
+// WSManager interface for WebSocket operations to avoid import cycles
+type WSManager interface {
+	SendLoadTestProgress(testID string, data map[string]any)
+	SendLoadTestComplete(testID string, testResult map[string]any)
+	SendLoadTestError(testID string, errorMsg string)
 }
 
 func NewLoadTestController(
 	loadTestRepo repositories.LoadTestRepository,
 	testDataRepo repositories.TestDataRepository,
+	wsManager WSManager,
 ) *LoadTestController {
 	return &LoadTestController{
 		loadTestRepo: loadTestRepo,
 		testDataRepo: testDataRepo,
 		dateUtils:    utils.NewDateUtils(),
 		log:          logger.New("loadTestController"),
+		wsManager:    wsManager,
 	}
 }
 
@@ -52,79 +61,105 @@ func GetKnownDateColumns() []string {
 	}
 }
 
-// CreateLoadTestRequest represents the request payload for creating a load test
-type CreateLoadTestRequest struct {
-	Rows        int    `json:"rows" validate:"required,min=1"`
-	Columns     int    `json:"columns" validate:"required,min=1"`  // Total columns (210 max: 200 regular + 10 date)
-	DateColumns int    `json:"dateColumns" validate:"min=0,max=10"` // Number of date columns to populate (0-10)
-	Method      string `json:"method" validate:"required,oneof=brute_force optimized"`
-}
 
-// CreateLoadTest creates a new load test and starts the performance test
-func (c *LoadTestController) CreateLoadTest(ctx *fiber.Ctx) error {
-	log := c.log.Function("CreateLoadTest")
+// CreateAndRunTest creates a new load test and starts the performance test
+func (c *LoadTestController) CreateAndRunTest(ctx context.Context, req *CreateLoadTestRequest) (*LoadTest, error) {
+	log := c.log.Function("CreateAndRunTest")
 	
-	var req CreateLoadTestRequest
-	if err := ctx.BodyParser(&req); err != nil {
-		log.Er("invalid request body", err)
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
-	}
-
-	// TODO: Add request validation
-
-	// Step 1: Create the LoadTest record  
+	// Create the LoadTest record  
 	loadTest := &LoadTest{
 		BaseUUIDModel: BaseUUIDModel{ID: uuid.New()},
 		Rows:          req.Rows,
 		Columns:       req.Columns,
+		DateColumns:   req.DateColumns,
 		Method:        req.Method,
 		Status:        "running",
 	}
-	
-	// Store dateColumns for the async processor
-	loadTest.DateColumns = req.DateColumns
 
-	if err := c.loadTestRepo.Create(ctx.Context(), loadTest); err != nil {
-		log.Er("failed to create load test", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to create load test",
-		})
+	if err := c.loadTestRepo.Create(ctx, loadTest); err != nil {
+		_ = log.Err("failed to create load test", err, "loadTest", loadTest)
+		return nil, fmt.Errorf("failed to create load test: %w", err)
 	}
 
-	// Step 2: Generate CSV data (async)
-	go c.processLoadTest(ctx.Context(), loadTest)
+	// Process the load test asynchronously
+	go c.processLoadTest(ctx, loadTest)
 
-	return ctx.JSON(fiber.Map{
-		"loadTestId": loadTest.ID,
-		"status":     "started",
-		"message":    "Load test started successfully",
-	})
+	log.Info("load test created and started", "loadTestId", loadTest.ID, "method", loadTest.Method)
+	return loadTest, nil
+}
+
+// GetLoadTestByID retrieves a load test by ID
+func (c *LoadTestController) GetLoadTestByID(ctx context.Context, id string) (*LoadTest, error) {
+	return c.loadTestRepo.GetByID(ctx, id)
+}
+
+// GetAllLoadTests retrieves all load tests
+func (c *LoadTestController) GetAllLoadTests(ctx context.Context) ([]*LoadTest, error) {
+	return c.loadTestRepo.GetAll(ctx)
 }
 
 // processLoadTest handles the actual load test processing
 func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *LoadTest) {
 	log := c.log.Function("processLoadTest")
+	testID := loadTest.ID.String()
+
+	// Send initial progress
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":            "csv_generation",
+		"overallProgress":  0,
+		"phaseProgress":    0,
+		"currentPhase":     "Generating CSV Data",
+		"rowsProcessed":    0,
+		"rowsPerSecond":    0,
+		"eta":              "Calculating...",
+		"message":          "Starting CSV generation...",
+	})
 
 	// Step 1: Generate CSV file
-	csvPath, csvGenTime, err := c.generateCSVFile(loadTest)
+	csvPath, csvGenTime, err := c.generateCSVFileWithProgress(loadTest)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV generation failed", err)
+		c.wsManager.SendLoadTestError(testID, "CSV generation failed: "+err.Error())
 		return
 	}
+
+	// Progress update: CSV generation complete
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":            "parsing",
+		"overallProgress":  25,
+		"phaseProgress":    0,
+		"currentPhase":     "Parsing and Validating",
+		"rowsProcessed":    0,
+		"rowsPerSecond":    0,
+		"eta":              "Calculating...",
+		"message":          "Starting data parsing and validation...",
+	})
 
 	// Step 2: Parse and validate CSV data
-	testData, parseTime, err := c.parseAndValidateCSV(csvPath, loadTest)
+	testData, parseTime, err := c.parseAndValidateCSVWithProgress(csvPath, loadTest)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV parsing failed", err)
+		c.wsManager.SendLoadTestError(testID, "CSV parsing failed: "+err.Error())
 		return
 	}
 
+	// Progress update: Parsing complete
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":            "insertion",
+		"overallProgress":  85,
+		"phaseProgress":    0,
+		"currentPhase":     "Inserting into Database",
+		"rowsProcessed":    0,
+		"rowsPerSecond":    0,
+		"eta":              "Calculating...",
+		"message":          fmt.Sprintf("Starting database insertion using %s method...", loadTest.Method),
+	})
+
 	// Step 3: Insert data using specified method
-	insertTime, err := c.insertTestData(ctx, testData, loadTest.Method)
+	insertTime, err := c.insertTestDataWithProgress(ctx, testData, loadTest.Method, testID)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "Data insertion failed", err)
+		c.wsManager.SendLoadTestError(testID, "Data insertion failed: "+err.Error())
 		return
 	}
 
@@ -137,8 +172,22 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 	loadTest.Status = "completed"
 
 	if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
-		log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
+		_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
 	}
+
+	// Send completion notification
+	c.wsManager.SendLoadTestComplete(testID, map[string]any{
+		"id":           loadTest.ID.String(),
+		"rows":         loadTest.Rows,
+		"columns":      loadTest.Columns,
+		"dateColumns":  loadTest.DateColumns,
+		"method":       loadTest.Method,
+		"status":       "completed",
+		"csvGenTime":   csvGenTime,
+		"parseTime":    parseTime,
+		"insertTime":   insertTime,
+		"totalTime":    totalTime,
+	})
 
 	log.Info("load test completed successfully", 
 		"loadTestId", loadTest.ID,
@@ -146,8 +195,8 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		"method", loadTest.Method)
 }
 
-// generateCSVFile creates a CSV file with the specified dimensions and known date columns
-func (c *LoadTestController) generateCSVFile(loadTest *LoadTest) (string, int, error) {
+// generateCSVFileWithProgress creates a CSV file with the specified dimensions and known date columns
+func (c *LoadTestController) generateCSVFileWithProgress(loadTest *LoadTest) (string, int, error) {
 	log := c.log.Function("generateCSVFile")
 	startTime := time.Now()
 	
@@ -177,7 +226,11 @@ func (c *LoadTestController) generateCSVFile(loadTest *LoadTest) (string, int, e
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to create CSV file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Warn("failed to close CSV file", "error", err)
+		}
+	}()
 	
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
@@ -325,8 +378,8 @@ func (c *LoadTestController) generateStringValue() string {
 	return fmt.Sprintf("%s_%s_%d", prefix, number, r.Intn(10000))
 }
 
-// parseAndValidateCSV reads the CSV file and validates only the populated date columns
-func (c *LoadTestController) parseAndValidateCSV(csvPath string, loadTest *LoadTest) ([]*TestData, int, error) {
+// parseAndValidateCSVWithProgress reads the CSV file and validates only the populated date columns
+func (c *LoadTestController) parseAndValidateCSVWithProgress(csvPath string, loadTest *LoadTest) ([]*TestData, int, error) {
 	log := c.log.Function("parseAndValidateCSV")
 	startTime := time.Now()
 	
@@ -335,7 +388,11 @@ func (c *LoadTestController) parseAndValidateCSV(csvPath string, loadTest *LoadT
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to open CSV file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Warn("failed to close CSV file", "error", err)
+		}
+	}()
 	
 	reader := csv.NewReader(file)
 	
@@ -545,8 +602,8 @@ func min(a, b int) int {
 	return b
 }
 
-// insertTestData performs the actual data insertion using the specified method
-func (c *LoadTestController) insertTestData(ctx context.Context, testData []*TestData, method string) (int, error) {
+// insertTestDataWithProgress performs the actual data insertion using the specified method
+func (c *LoadTestController) insertTestDataWithProgress(ctx context.Context, testData []*TestData, method string, testID string) (int, error) {
 	log := c.log.Function("insertTestData")
 	startTime := time.Now()
 	
@@ -554,16 +611,16 @@ func (c *LoadTestController) insertTestData(ctx context.Context, testData []*Tes
 	
 	switch method {
 	case "brute_force":
-		return c.insertBruteForce(ctx, testData, startTime)
+		return c.insertBruteForceWithProgress(ctx, testData, startTime, testID)
 	case "optimized":
-		return c.insertOptimized(ctx, testData, startTime)
+		return c.insertOptimizedWithProgress(ctx, testData, startTime, testID)
 	default:
 		return 0, fmt.Errorf("unknown insertion method: %s", method)
 	}
 }
 
-// insertBruteForce performs individual inserts for each record
-func (c *LoadTestController) insertBruteForce(ctx context.Context, testData []*TestData, startTime time.Time) (int, error) {
+// insertBruteForceWithProgress performs individual inserts for each record
+func (c *LoadTestController) insertBruteForceWithProgress(ctx context.Context, testData []*TestData, startTime time.Time, testID string) (int, error) {
 	log := c.log.Function("insertBruteForce")
 	
 	successCount := 0
@@ -577,8 +634,38 @@ func (c *LoadTestController) insertBruteForce(ctx context.Context, testData []*T
 			successCount++
 		}
 		
-		// Log progress for large datasets
-		if i > 0 && i%1000 == 0 {
+		// Send progress updates every 500 records or for smaller datasets every 50
+		progressInterval := 500
+		if len(testData) < 5000 {
+			progressInterval = 50
+		}
+		
+		if i > 0 && i%progressInterval == 0 {
+			elapsed := time.Since(startTime)
+			rowsPerSecond := int(float64(i) / elapsed.Seconds())
+			remaining := len(testData) - i
+			eta := "Calculating..."
+			if rowsPerSecond > 0 {
+				etaSeconds := remaining / rowsPerSecond
+				if etaSeconds < 60 {
+					eta = fmt.Sprintf("%ds", etaSeconds)
+				} else {
+					eta = fmt.Sprintf("%dm", etaSeconds/60)
+				}
+			}
+			
+			progress := float64(i) / float64(len(testData)) * 100
+			c.wsManager.SendLoadTestProgress(testID, map[string]any{
+				"phase":            "insertion",
+				"overallProgress":  85 + (progress * 0.15), // 85% to 100%
+				"phaseProgress":    progress,
+				"currentPhase":     "Inserting into Database",
+				"rowsProcessed":    i,
+				"rowsPerSecond":    rowsPerSecond,
+				"eta":              eta,
+				"message":          fmt.Sprintf("Inserting records using brute force method (%d/%d)...", i, len(testData)),
+			})
+			
 			log.Debug("brute force insertion progress", 
 				"recordsProcessed", i+1,
 				"totalRecords", len(testData),
@@ -602,8 +689,8 @@ func (c *LoadTestController) insertBruteForce(ctx context.Context, testData []*T
 	return insertTime, nil
 }
 
-// insertOptimized performs batch inserts for better performance
-func (c *LoadTestController) insertOptimized(ctx context.Context, testData []*TestData, startTime time.Time) (int, error) {
+// insertOptimizedWithProgress performs batch inserts for better performance
+func (c *LoadTestController) insertOptimizedWithProgress(ctx context.Context, testData []*TestData, startTime time.Time, testID string) (int, error) {
 	log := c.log.Function("insertOptimized")
 	
 	// Use default batch size of 1000, or configure based on data size
@@ -612,13 +699,38 @@ func (c *LoadTestController) insertOptimized(ctx context.Context, testData []*Te
 		batchSize = len(testData) // Use smaller batches for small datasets
 	}
 	
+	// Send progress update for optimized batch insertion start
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":            "insertion",
+		"overallProgress":  90,
+		"phaseProgress":    50,
+		"currentPhase":     "Inserting into Database",
+		"rowsProcessed":    0,
+		"rowsPerSecond":    0,
+		"eta":              "Calculating...",
+		"message":          fmt.Sprintf("Performing optimized batch insertion (%d records in batches of %d)...", len(testData), batchSize),
+	})
+	
 	if err := c.testDataRepo.CreateBatch(ctx, testData, batchSize); err != nil {
 		insertTime := int(time.Since(startTime).Milliseconds())
-		log.Err("optimized batch insertion failed", err, "recordCount", len(testData), "batchSize", batchSize)
+		_ = log.Err("optimized batch insertion failed", err, "recordCount", len(testData), "batchSize", batchSize)
 		return insertTime, fmt.Errorf("batch insertion failed: %w", err)
 	}
 	
 	insertTime := int(time.Since(startTime).Milliseconds())
+	rowsPerSecond := int(float64(len(testData)) / (float64(insertTime) / 1000))
+	
+	// Send final progress update
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":            "insertion",
+		"overallProgress":  100,
+		"phaseProgress":    100,
+		"currentPhase":     "Database Insertion Complete",
+		"rowsProcessed":    len(testData),
+		"rowsPerSecond":    rowsPerSecond,
+		"eta":              "Done",
+		"message":          fmt.Sprintf("Successfully inserted %d records using optimized batch method", len(testData)),
+	})
 	
 	log.Info("optimized batch insertion completed", 
 		"totalRecords", len(testData),
@@ -637,85 +749,9 @@ func (c *LoadTestController) updateLoadTestError(ctx context.Context, loadTest *
 	loadTest.ErrorMessage = &errorMsg
 	
 	if updateErr := c.loadTestRepo.Update(ctx, loadTest); updateErr != nil {
-		log.Err("failed to update load test error", updateErr, "loadTestId", loadTest.ID)
+		_ = log.Err("failed to update load test error", updateErr, "loadTestId", loadTest.ID)
 	}
 	
-	log.Err(message, err, "loadTestId", loadTest.ID)
+	_ = log.Err(message, err, "loadTestId", loadTest.ID)
 }
 
-// GetLoadTest retrieves a load test by ID
-func (c *LoadTestController) GetLoadTest(ctx *fiber.Ctx) error {
-	log := c.log.Function("GetLoadTest")
-	
-	id := ctx.Params("id")
-	if id == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "load test ID is required",
-		})
-	}
-
-	loadTest, err := c.loadTestRepo.GetByID(ctx.Context(), id)
-	if err != nil {
-		log.Er("load test not found", err)
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "load test not found",
-		})
-	}
-
-	return ctx.JSON(loadTest)
-}
-
-// GetLoadTests retrieves all load tests
-func (c *LoadTestController) GetLoadTests(ctx *fiber.Ctx) error {
-	log := c.log.Function("GetLoadTests")
-	
-	loadTests, err := c.loadTestRepo.GetAll(ctx.Context())
-	if err != nil {
-		log.Er("failed to retrieve load tests", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to retrieve load tests",
-		})
-	}
-
-	return ctx.JSON(loadTests)
-}
-
-// GetTestData retrieves test data for a specific load test with pagination
-func (c *LoadTestController) GetTestData(ctx *fiber.Ctx) error {
-	log := c.log.Function("GetTestData")
-	
-	loadTestID := ctx.Params("id")
-	if loadTestID == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "load test ID is required",
-		})
-	}
-
-	// TODO: Parse pagination parameters from query string
-	offset := 0
-	limit := 100
-	
-	testData, err := c.testDataRepo.GetByLoadTestIDPaginated(ctx.Context(), loadTestID, offset, limit)
-	if err != nil {
-		log.Er("failed to retrieve test data", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to retrieve test data",
-		})
-	}
-
-	// Get total count for pagination
-	totalCount, err := c.testDataRepo.CountByLoadTestID(ctx.Context(), loadTestID)
-	if err != nil {
-		log.Er("failed to count test data", err)
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to count test data",
-		})
-	}
-
-	return ctx.JSON(fiber.Map{
-		"data":       testData,
-		"totalCount": totalCount,
-		"offset":     offset,
-		"limit":      limit,
-	})
-}

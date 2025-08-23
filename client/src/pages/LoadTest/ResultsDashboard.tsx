@@ -17,6 +17,15 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
     props.testHistory.filter(test => test.status === 'completed')
   );
 
+  const sortedTestHistory = createMemo(() => {
+    // Sort by creation time or ID (most recent first) to ensure chronological order
+    return [...props.testHistory].sort((a, b) => {
+      // Assuming the API returns tests with more recent tests having larger IDs or timestamps
+      // If we have timestamps, use those; otherwise use ID comparison
+      return b.id.localeCompare(a.id);
+    });
+  });
+
   const formatTime = (ms: number | undefined): string => {
     if (!ms) return 'N/A';
     if (ms < 1000) return `${ms}ms`;
@@ -224,7 +233,7 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
           }
         >
           <div class={styles.historyList}>
-            <For each={props.testHistory.slice(0, 10)}>
+            <For each={sortedTestHistory().slice(0, 10)}>
               {(test, index) => (
                 <div class={styles.historyItem}>
                   <div class={styles.historyHeader}>
@@ -235,7 +244,7 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
                       >
                         {getStatusIcon(test.status)}
                       </span>
-                      Test #{props.testHistory.length - index()}
+                      Test #{index() + 1}
                     </div>
                     <div class={styles.historyMethod}>
                       {test.method === 'optimized' ? 'Optimized' : 'Brute Force'}
@@ -261,10 +270,10 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
               )}
             </For>
             
-            <Show when={props.testHistory.length > 10}>
+            <Show when={sortedTestHistory().length > 10}>
               <div class={styles.showMore}>
                 <Button variant="ghost" size="sm">
-                  Show {props.testHistory.length - 10} more tests
+                  Show {sortedTestHistory().length - 10} more tests
                 </Button>
               </div>
             </Show>

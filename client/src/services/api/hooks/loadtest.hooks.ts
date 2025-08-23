@@ -5,10 +5,8 @@ import {
   getLoadTestStatus, 
   getLoadTestHistory, 
   deleteLoadTest,
-  StartLoadTestRequest,
   StartLoadTestResponse,
   GetLoadTestResponse,
-  GetLoadTestHistoryResponse,
   DeleteLoadTestResponse
 } from "../endpoints/loadtest.api";
 import { LoadTestConfig, LoadTestResult } from "@pages/LoadTest/LoadTest";
@@ -57,7 +55,7 @@ export const useStartLoadTest = () => {
 
       // Set the new test data in cache
       queryClient.setQueryData(
-        queryKeys.loadTest(data.data.testId),
+        queryKeys.loadTest(data.loadTest.id),
         data
       );
     },
@@ -93,7 +91,7 @@ export const useDeleteLoadTest = () => {
         queryKey: invalidationHelpers.invalidateLoadTests() 
       });
     },
-    onError: (error: ApiClientError | NetworkError, testId: string) => {
+    onError: (error: ApiClientError | NetworkError) => {
       const message = error instanceof ApiClientError 
         ? error.message 
         : 'Failed to delete load test. Please try again.';
@@ -106,7 +104,7 @@ export const useDeleteLoadTest = () => {
 };
 
 // Hook for managing WebSocket updates to load test data
-export const useLoadTestWebSocketUpdates = (testId?: string) => {
+export const useLoadTestWebSocketUpdates = () => {
   const queryClient = useQueryClient();
 
   const updateTestProgress = (testId: string, updatedTest: Partial<LoadTestResult>) => {
@@ -117,12 +115,9 @@ export const useLoadTestWebSocketUpdates = (testId?: string) => {
         
         return {
           ...oldData,
-          data: {
-            ...oldData.data,
-            test: {
-              ...oldData.data.test,
-              ...updatedTest,
-            },
+          loadTest: {
+            ...oldData.loadTest,
+            ...updatedTest,
           },
         };
       }
@@ -134,8 +129,8 @@ export const useLoadTestWebSocketUpdates = (testId?: string) => {
     queryClient.setQueryData(
       queryKeys.loadTest(testId),
       {
-        success: true,
-        data: { test: completedTest },
+        message: "success",
+        loadTest: completedTest,
       }
     );
 
@@ -156,7 +151,7 @@ export const useLoadTestStats = () => {
   const historyQuery = useLoadTestHistory();
   
   const stats = () => {
-    const tests = historyQuery.data?.data?.tests || [];
+    const tests = historyQuery.data?.loadTests || [];
     const completedTests = tests.filter(test => test.status === 'completed');
     const runningTests = tests.filter(test => test.status === 'running');
     const failedTests = tests.filter(test => test.status === 'failed');

@@ -13,3 +13,10 @@ type LoadTest struct {
 	TotalTime    *int    `gorm:"type:int"                        json:"totalTime"`    // milliseconds
 	ErrorMessage *string `gorm:"type:text"                       json:"errorMessage,omitempty"`
 }
+
+type CreateLoadTestRequest struct {
+	Rows        int    `json:"rows" validate:"required,min=1"`
+	Columns     int    `json:"columns" validate:"required,min=1"`  // Total columns (210 max: 200 regular + 10 date)
+	DateColumns int    `json:"dateColumns" validate:"min=0,max=10"` // Number of date columns to populate (0-10)
+	Method      string `json:"method" validate:"required,oneof=brute_force optimized"`
+}

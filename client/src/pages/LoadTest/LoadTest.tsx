@@ -1,4 +1,4 @@
-import { Component, createSignal, createEffect, onCleanup } from "solid-js";
+import { Component, createSignal } from "solid-js";
 import styles from "./LoadTest.module.scss";
 import { LoadTestForm } from "./LoadTestForm";
 import { ProgressDisplay } from "./ProgressDisplay";
@@ -36,7 +36,7 @@ const LoadTest: Component = () => {
   const handleStartTest = async (config: LoadTestConfig) => {
     try {
       const result = await startTestMutation.mutateAsync(config);
-      setCurrentTest(result.data.test);
+      setCurrentTest(result.loadTest);
     } catch (error) {
       console.error("Failed to start test:", error);
       // Error handling is done in the mutation hook
@@ -75,7 +75,7 @@ const LoadTest: Component = () => {
           <div class={styles.rightColumn}>
             <ResultsDashboard 
               currentTest={currentTest()}
-              testHistory={historyQuery.data?.data?.tests || []}
+              testHistory={historyQuery.data?.loadTests || []}
               isHistoryLoading={historyQuery.isLoading}
               historyError={historyQuery.error}
             />

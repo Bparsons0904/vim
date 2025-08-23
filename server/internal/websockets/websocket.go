@@ -13,22 +13,25 @@ import (
 )
 
 const (
-	MESSAGE_TYPE_PING          = "ping"
-	MESSAGE_TYPE_PONG          = "pong"
-	MESSAGE_TYPE_MESSAGE       = "message"
-	MESSAGE_TYPE_BROADCAST     = "broadcast"
-	MESSAGE_TYPE_ERROR         = "error"
-	MESSAGE_TYPE_USER_JOIN     = "user_join"
-	MESSAGE_TYPE_USER_LEAVE    = "user_leave"
-	MESSAGE_TYPE_AUTH_REQUEST  = "auth_request"
-	MESSAGE_TYPE_AUTH_RESPONSE = "auth_response"
-	MESSAGE_TYPE_AUTH_SUCCESS  = "auth_success"
-	MESSAGE_TYPE_AUTH_FAILURE  = "auth_failure"
-	PING_INTERVAL              = 30 * time.Second
-	PONG_TIMEOUT               = 60 * time.Second
-	WRITE_TIMEOUT              = 10 * time.Second
-	MAX_MESSAGE_SIZE           = 1024 * 1024 // 1 MB
-	SEND_CHANNEL_SIZE          = 64
+	MESSAGE_TYPE_PING               = "ping"
+	MESSAGE_TYPE_PONG               = "pong"
+	MESSAGE_TYPE_MESSAGE            = "message"
+	MESSAGE_TYPE_BROADCAST          = "broadcast"
+	MESSAGE_TYPE_ERROR              = "error"
+	MESSAGE_TYPE_USER_JOIN          = "user_join"
+	MESSAGE_TYPE_USER_LEAVE         = "user_leave"
+	MESSAGE_TYPE_AUTH_REQUEST       = "auth_request"
+	MESSAGE_TYPE_AUTH_RESPONSE      = "auth_response"
+	MESSAGE_TYPE_AUTH_SUCCESS       = "auth_success"
+	MESSAGE_TYPE_AUTH_FAILURE       = "auth_failure"
+	MESSAGE_TYPE_LOADTEST_PROGRESS  = "loadtest_progress"
+	MESSAGE_TYPE_LOADTEST_COMPLETE  = "loadtest_complete"
+	MESSAGE_TYPE_LOADTEST_ERROR     = "loadtest_error"
+	PING_INTERVAL                   = 30 * time.Second
+	PONG_TIMEOUT                    = 60 * time.Second
+	WRITE_TIMEOUT                   = 10 * time.Second
+	MAX_MESSAGE_SIZE                = 1024 * 1024 // 1 MB
+	SEND_CHANNEL_SIZE               = 64
 	// Channels
 	BROADCAST_CHANNEL = "broadcast"
 )
@@ -493,4 +496,65 @@ func (m *Manager) BroadcastCacheInvalidation(
 		"userCount", len(userIDs),
 		"sentCount", sentCount,
 	)
+}
+
+// SendLoadTestProgress sends load test progress updates to authenticated clients
+func (m *Manager) SendLoadTestProgress(testID string, data map[string]any) {
+	log := m.log.Function("SendLoadTestProgress")
+
+	message := Message{
+		ID:        uuid.New().String(),
+		Type:      MESSAGE_TYPE_LOADTEST_PROGRESS,
+		Channel:   "loadtest",
+		Action:    "progress",
+		Data:      data,
+		Timestamp: time.Now(),
+	}
+
+	message.Data["testId"] = testID
+
+	m.sendToAuthenticatedClients(message)
+
+	log.Info("Load test progress sent", "testId", testID, "messageID", message.ID)
+}
+
+// SendLoadTestComplete sends load test completion notification to authenticated clients
+func (m *Manager) SendLoadTestComplete(testID string, testResult map[string]any) {
+	log := m.log.Function("SendLoadTestComplete")
+
+	message := Message{
+		ID:        uuid.New().String(),
+		Type:      MESSAGE_TYPE_LOADTEST_COMPLETE,
+		Channel:   "loadtest",
+		Action:    "complete",
+		Data:      testResult,
+		Timestamp: time.Now(),
+	}
+
+	message.Data["testId"] = testID
+
+	m.sendToAuthenticatedClients(message)
+
+	log.Info("Load test completion sent", "testId", testID, "messageID", message.ID)
+}
+
+// SendLoadTestError sends load test error notification to authenticated clients
+func (m *Manager) SendLoadTestError(testID string, errorMsg string) {
+	log := m.log.Function("SendLoadTestError")
+
+	message := Message{
+		ID:        uuid.New().String(),
+		Type:      MESSAGE_TYPE_LOADTEST_ERROR,
+		Channel:   "loadtest",
+		Action:    "error",
+		Data: map[string]any{
+			"testId": testID,
+			"error":  errorMsg,
+		},
+		Timestamp: time.Now(),
+	}
+
+	m.sendToAuthenticatedClients(message)
+
+	log.Info("Load test error sent", "testId", testID, "messageID", message.ID, "error", errorMsg)
 }
