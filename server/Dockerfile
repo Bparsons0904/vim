@@ -18,6 +18,7 @@ COPY . .
 
 # Build the application
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o migration cmd/migration/main.go
 
 # Production stage
 FROM alpine:latest
@@ -34,6 +35,7 @@ WORKDIR /app
 
 # Copy binary from builder stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/migration .
 
 # Create data directory and set ownership
 RUN mkdir -p /data && chown -R appuser:appgroup /app /data
