@@ -14,11 +14,12 @@ services:
       - vim-network
     environment:
       - GO_ENV=production
-      - SERVER_PORT=8288
+      - GENERAL_VERSION=${GENERAL_VERSION}
+      - SERVER_PORT=${SERVER_PORT:-8288}
       - DB_PATH=/data/vim.db
       - DB_CACHE_ADDRESS=valkey
       - DB_CACHE_PORT=6379
-      - DB_CACHE_RESET=-1
+      - DB_CACHE_RESET=${DB_CACHE_RESET:-1}
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}
       - SECURITY_SALT=${SECURITY_SALT}
       - SECURITY_PEPPER=${SECURITY_PEPPER}
