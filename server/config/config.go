@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	// GeneralVersion       string `mapstructure:"GENERAL_VERSION"`
+	GeneralVersion       string `mapstructure:"GENERAL_VERSION"`
 	Environment          string `mapstructure:"ENVIRONMENT"`
 	ServerPort           int    `mapstructure:"SERVER_PORT"`
 	DatabaseDbPath       string `mapstructure:"DB_PATH"`
