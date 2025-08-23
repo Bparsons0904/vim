@@ -1,0 +1,114 @@
+---
+kind: pipeline
+type: docker
+name: build
+
+steps:
+  - name: build-frontend
+    image: node:22-alpine
+    environment:
+      VITE_GENERAL_VERSION:
+        from_secret: VITE_GENERAL_VERSION
+      VITE_API_URL:
+        from_secret: VITE_API_URL
+      VITE_WS_URL:
+        from_secret: VITE_WS_URL
+      VITE_ENV:
+        from_secret: VITE_ENV
+    commands:
+      - cd client
+      - npm ci --include=dev
+      - npm run build
+
+  - name: build-backend
+    image: golang:1.24.3-alpine
+    commands:
+      - apk add --no-cache gcc musl-dev
+      - cd server
+      - go mod download
+      - CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main cmd/api/main.go
+
+  - name: build-server-image
+    image: docker:24-cli
+    commands:
+      - cd server
+      - docker build -t vim-server:latest .
+    depends_on:
+      - build-backend
+
+  - name: build-client-image
+    image: docker:24-cli
+    environment:
+      VITE_GENERAL_VERSION:
+        from_secret: VITE_GENERAL_VERSION
+      VITE_API_URL:
+        from_secret: VITE_API_URL
+      VITE_WS_URL:
+        from_secret: VITE_WS_URL
+      VITE_ENV:
+        from_secret: VITE_ENV
+    commands:
+      - cd client
+      - docker build -t vim-client:latest 
+        --build-arg VITE_GENERAL_VERSION="$VITE_GENERAL_VERSION"
+        --build-arg VITE_API_URL="$VITE_API_URL"
+        --build-arg VITE_WS_URL="$VITE_WS_URL"
+        --build-arg VITE_ENV="$VITE_ENV"
+        .
+    depends_on:
+      - build-frontend
+
+---
+kind: pipeline
+type: docker
+name: deploy
+
+steps:
+  - name: deploy
+    image: docker/compose:alpine-1.29.2
+    environment:
+      GENERAL_VERSION:
+        from_secret: GENERAL_VERSION
+      SERVER_PORT:
+        from_secret: SERVER_PORT
+      DB_PATH:
+        from_secret: DB_PATH
+      DB_CACHE_ADDRESS:
+        from_secret: DB_CACHE_ADDRESS
+      DB_CACHE_PORT:
+        from_secret: DB_CACHE_PORT
+      DB_CACHE_RESET:
+        from_secret: DB_CACHE_RESET
+      CORS_ALLOW_ORIGINS:
+        from_secret: CORS_ALLOW_ORIGINS
+      SECURITY_SALT:
+        from_secret: SECURITY_SALT
+      SECURITY_PEPPER:
+        from_secret: SECURITY_PEPPER
+      SECURITY_JWT_SECRET:
+        from_secret: SECURITY_JWT_SECRET
+      CLIENT_PORT:
+        from_secret: CLIENT_PORT
+      VITE_GENERAL_VERSION:
+        from_secret: VITE_GENERAL_VERSION
+      VITE_API_URL:
+        from_secret: VITE_API_URL
+      VITE_WS_URL:
+        from_secret: VITE_WS_URL
+      VITE_ENV:
+        from_secret: VITE_ENV
+      DOCKER_ENV:
+        from_secret: DOCKER_ENV
+    commands:
+      - docker-compose down || true
+      - docker network create traefik || true
+      - docker-compose up -d
+      - docker image prune -f
+    when:
+      branch:
+        - main
+      event:
+        - push
+
+depends_on:
+  - build
