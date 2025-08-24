@@ -22,7 +22,7 @@ Create a comprehensive database loading performance tester that generates CSV fi
 - Date validation service supporting 10 different US date formats
 - Two insertion methods:
   - **Brute Force**: Single row inserts
-  - **Optimized**: Batch inserts (2000-5000 rows per batch) with transactions
+  - **Batched**: Batch inserts (2000 rows per batch) with transactions
 - Progress tracking via WebSocket
 - Performance timing for each phase (generation, parsing, insertion)
 
@@ -112,7 +112,7 @@ Support these 10 US date formats:
 - Coordinate the entire test process
 - Two insertion methods:
   - **Brute Force**: `INSERT` one row at a time
-  - **Optimized**: Batch `INSERT` with transactions (batch size: 3000 rows)
+  - **Batched**: Batch `INSERT` with transactions (batch size: 2000 rows)
 - Progress tracking with WebSocket updates
 - Performance timing for each phase
 
@@ -212,7 +212,7 @@ DELETE /api/loadtest/:id        - Delete test and data
 
 ### Performance Targets
 
-- **Goal**: Load 1M rows in under 60 seconds with optimized method
+- **Goal**: Load 1M rows in under 60 seconds with batched method
 - **Benchmark**: Compare against reported 10-15 minutes for 100k rows
 - **Metrics**: Track CSV generation, parsing, and insertion times separately
 
@@ -240,7 +240,7 @@ DELETE /api/loadtest/:id        - Delete test and data
 ### Success Criteria
 
 - Successfully generate and load 10M rows
-- Demonstrate significant performance improvement with optimized method
+- Demonstrate significant performance improvement with batched method
 - Real-time progress updates working smoothly
 - Clean, intuitive UI for configuration and monitoring
 - Comprehensive error handling and recovery

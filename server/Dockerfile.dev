@@ -1,37 +1,33 @@
 FROM golang:1.24.3-alpine AS base
 
-# Install necessary packages
-RUN apk add --no-cache git make gcc musl-dev curl
-
-# Install Air for hot reloading
-RUN go install github.com/air-verse/air@latest
+# Install necessary packages in a single layer
+RUN apk add --no-cache git make gcc musl-dev curl && \
+    go install github.com/air-verse/air@latest
 
 # Set working directory
 WORKDIR /app
 
-# Copy go mod files first for better caching
+# Create cache directories with proper permissions upfront
+RUN mkdir -p /.cache/go-build /go/pkg/mod tmp && \
+    chmod -R 777 /.cache /go/pkg && \
+    chmod 755 tmp
+
+# Copy go mod files first for better dependency caching
 COPY go.mod go.sum ./
 
-# Download dependencies and cache them in a layer
+# Download and verify dependencies in one step
 RUN go mod download && go mod verify
-
-# Create GOCACHE and GOMODCACHE directories with proper permissions
-RUN mkdir -p /.cache/go-build /go/pkg/mod && \
-    chmod -R 777 /.cache /go/pkg
 
 # Development stage
 FROM base AS development
 
-# Copy the rest of the application
-COPY . .
-
-# Ensure Air config exists and is accessible
+# Copy Air config first (rarely changes)
 COPY .air.toml .air.toml
 
-# Create tmp directory for Air and set permissions
-RUN mkdir -p tmp && chmod 755 tmp
+# Copy source code (changes frequently, so comes last)
+COPY . .
 
-# Set up proper permissions for the entire app directory
+# Set up final permissions in one layer
 RUN chmod -R 755 /app
 
 # Set environment variables for Go build cache

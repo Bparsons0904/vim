@@ -266,9 +266,23 @@ func (c *LoadTestController) generateCSVFileWithProgress(loadTest *LoadTest) (st
 		return "", 0, fmt.Errorf("failed to write headers: %w", err)
 	}
 	
-	// Generate data rows
+	// Create single RNG instance for better performance
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	
+	// Pre-compute column maps for better performance
+	selectedDateColumnMap := make(map[string]bool)
+	for _, col := range selectedDateColumns {
+		selectedDateColumnMap[col] = true
+	}
+	
+	allDateColumnMap := make(map[string]bool)
+	for _, col := range allDateColumns {
+		allDateColumnMap[col] = true
+	}
+	
+	// Generate data rows with optimized approach
 	for i := 0; i < loadTest.Rows; i++ {
-		row := c.generateDataRow(headers, selectedDateColumns)
+		row := c.generateDataRowOptimized(headers, selectedDateColumnMap, allDateColumnMap, rng)
 		if err := writer.Write(row); err != nil {
 			return "", 0, fmt.Errorf("failed to write row %d: %w", i, err)
 		}
@@ -341,7 +355,30 @@ func (c *LoadTestController) selectRandomDateColumns(allDateColumns []string, co
 	return columns[:count]
 }
 
-// generateDataRow creates a single data row with appropriate data for each column
+// generateDataRowOptimized creates a single data row with pre-computed maps for better performance
+func (c *LoadTestController) generateDataRowOptimized(headers []string, selectedDateColumnMap, allDateColumnMap map[string]bool, rng *rand.Rand) []string {
+	row := make([]string, len(headers))
+	
+	for i, header := range headers {
+		if allDateColumnMap[header] {
+			// This is a date column - populate only if it's selected
+			if selectedDateColumnMap[header] {
+				// Generate date data in various formats
+				row[i] = c.generateDateValueOptimized(rng)
+			} else {
+				// Leave empty for unselected date columns
+				row[i] = ""
+			}
+		} else {
+			// Generate appropriate data for meaningful columns
+			row[i] = c.generateMeaningfulColumnValueOptimized(header, rng)
+		}
+	}
+	
+	return row
+}
+
+// generateDataRow creates a single data row with appropriate data for each column (kept for backward compatibility)
 func (c *LoadTestController) generateDataRow(headers []string, selectedDateColumns []string) []string {
 	row := make([]string, len(headers))
 	
@@ -358,6 +395,8 @@ func (c *LoadTestController) generateDataRow(headers []string, selectedDateColum
 		allDateColumnMap[col] = true
 	}
 	
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	
 	for i, header := range headers {
 		if allDateColumnMap[header] {
 			// This is a date column - populate only if it's selected
@@ -370,14 +409,34 @@ func (c *LoadTestController) generateDataRow(headers []string, selectedDateColum
 			}
 		} else {
 			// Generate appropriate data for meaningful columns
-			row[i] = c.generateMeaningfulColumnValue(header)
+			row[i] = c.generateMeaningfulColumnValueOptimized(header, rng)
 		}
 	}
 	
 	return row
 }
 
-// generateDateValue creates a random date in various formats using our date utils
+// generateDateValueOptimized creates a random date optimized for performance
+func (c *LoadTestController) generateDateValueOptimized(rng *rand.Rand) string {
+	// Pre-defined date formats and patterns for better performance
+	formats := []string{
+		"01/02/2006", "1/2/2006", "01/02/06", "1/2/06",
+		"01-02-2006", "1-2-2006", "01-02-06", "1-2-06",
+		"2006-01-02", "2006/01/02",
+	}
+	
+	// Generate random date between 2020 and 2024
+	year := 2020 + rng.Intn(5)
+	month := rng.Intn(12) + 1
+	day := rng.Intn(28) + 1 // Use 28 to avoid month-specific logic
+	
+	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+	format := formats[rng.Intn(len(formats))]
+	
+	return date.Format(format)
+}
+
+// generateDateValue creates a random date in various formats using our date utils (kept for backward compatibility)
 func (c *LoadTestController) generateDateValue() string {
 	// Generate fake dates using our date faker
 	faker := c.dateUtils.GetFaker()
@@ -393,7 +452,76 @@ func (c *LoadTestController) generateDateValue() string {
 	return "2023-01-15"
 }
 
-// generateMeaningfulColumnValue creates appropriate fake data for meaningful columns
+// Pre-defined data sets for optimized generation (defined at package level for better performance)
+var (
+	firstNames     = []string{"John", "Jane", "Michael", "Sarah", "David", "Lisa", "Robert", "Mary", "James", "Jennifer", "William", "Patricia", "Richard", "Linda", "Charles", "Barbara", "Joseph", "Elizabeth", "Thomas", "Dorothy"}
+	lastNames      = []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin"}
+	emailFirsts    = []string{"john", "jane", "mike", "sarah", "david", "lisa", "bob", "mary", "james", "jen", "alex", "chris", "pat", "sam", "casey", "jordan", "taylor", "morgan", "riley", "drew"}
+	emailDomains   = []string{"gmail.com", "yahoo.com", "outlook.com", "company.com", "example.org", "hotmail.com", "aol.com", "icloud.com", "protonmail.com", "mail.com"}
+	streetNumbers  = []int{123, 456, 789, 1011, 1234, 5678, 2468, 1357, 9876, 5432, 1111, 2222, 3333, 4444, 5555, 6666, 7777, 8888, 9999, 1024}
+	streetNames    = []string{"Main St", "Oak Ave", "First St", "Park Blvd", "Elm St", "Cedar Ave", "Pine Rd", "Maple Dr", "Washington St", "Lincoln Ave", "Jefferson Blvd", "Adams Way", "Madison Ct", "Monroe Dr", "Jackson St", "Franklin Ave", "Roosevelt Rd", "Kennedy Blvd", "Wilson St", "Taylor Ave"}
+	cities         = []string{"New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "Austin", "Jacksonville", "Fort Worth", "Columbus", "Indianapolis", "Charlotte", "San Francisco", "Seattle", "Denver", "Washington", "Boston"}
+	states         = []string{"CA", "TX", "NY", "FL", "IL", "PA", "OH", "GA", "NC", "MI", "WA", "AZ", "MA", "VA", "CO", "MD", "MN", "MO", "WI", "OR"}
+	countries      = []string{"United States", "Canada", "Mexico", "United Kingdom", "Germany", "France", "Japan", "Australia", "Italy", "Spain", "Netherlands", "Sweden", "Norway", "Denmark", "Finland", "Belgium", "Switzerland", "Austria", "Portugal", "Ireland"}
+	companies      = []string{"Acme Corp", "Tech Solutions", "Global Industries", "Metro Systems", "Alpha Enterprises", "Beta LLC", "Gamma Inc", "Delta Group", "Omega Solutions", "Prime Industries", "Elite Systems", "Superior Corp", "Advanced Tech", "Innovative Solutions", "Dynamic Systems", "Strategic Industries", "Premier Group", "Excellence Corp", "Quality Solutions", "Performance Systems"}
+	jobTitles      = []string{"Software Engineer", "Manager", "Analyst", "Coordinator", "Specialist", "Director", "Associate", "Consultant", "Administrator", "Developer", "Designer", "Architect", "Lead", "Senior", "Junior", "Principal", "Staff", "Team Lead", "Project Manager", "Product Manager"}
+	departments    = []string{"Engineering", "Sales", "Marketing", "HR", "Finance", "Operations", "IT", "Customer Service", "Legal", "Research", "Development", "Quality Assurance", "Security", "Procurement", "Training", "Facilities", "Compliance", "Strategy", "Business Development", "Analytics"}
+	insuranceCarriers = []string{"Blue Cross Blue Shield", "Aetna", "Cigna", "UnitedHealthcare", "Humana", "Kaiser Permanente", "Anthem", "Molina Healthcare", "Centene", "WellCare", "Independence Blue Cross", "Highmark", "BCBS of Michigan", "Florida Blue", "Premera Blue Cross", "CareFirst", "Excellus", "HCSC", "Caresource", "BCBS of North Carolina"}
+)
+
+// generateMeaningfulColumnValueOptimized creates appropriate fake data with pre-allocated data and shared RNG
+func (c *LoadTestController) generateMeaningfulColumnValueOptimized(columnName string, rng *rand.Rand) string {
+	switch columnName {
+	case "first_name":
+		return firstNames[rng.Intn(len(firstNames))]
+	case "last_name":
+		return lastNames[rng.Intn(len(lastNames))]
+	case "email":
+		return emailFirsts[rng.Intn(len(emailFirsts))] + fmt.Sprint(rng.Intn(999)) + "@" + emailDomains[rng.Intn(len(emailDomains))]
+	case "phone":
+		return fmt.Sprintf("(%03d) %03d-%04d", rng.Intn(800)+200, rng.Intn(800)+200, rng.Intn(10000))
+	case "address_line_1":
+		return fmt.Sprint(streetNumbers[rng.Intn(len(streetNumbers))]) + " " + streetNames[rng.Intn(len(streetNames))]
+	case "address_line_2":
+		if rng.Intn(3) == 0 { // 33% chance of having apartment/unit
+			return "Apt " + fmt.Sprint(rng.Intn(999)+1)
+		}
+		return "" // Often empty
+	case "city":
+		return cities[rng.Intn(len(cities))]
+	case "state":
+		return states[rng.Intn(len(states))]
+	case "zip_code":
+		return fmt.Sprintf("%05d", rng.Intn(99999))
+	case "country":
+		return countries[rng.Intn(len(countries))]
+	case "social_security_no":
+		return fmt.Sprintf("***-**-%04d", rng.Intn(10000)) // Masked for privacy
+	case "employer":
+		return companies[rng.Intn(len(companies))]
+	case "job_title":
+		return jobTitles[rng.Intn(len(jobTitles))]
+	case "department":
+		return departments[rng.Intn(len(departments))]
+	case "salary":
+		return "$" + fmt.Sprint((rng.Intn(100)+40)*1000) // $40k to $140k
+	case "insurance_plan_id":
+		return fmt.Sprintf("PLAN-%03d", rng.Intn(999)+1)
+	case "insurance_carrier":
+		return insuranceCarriers[rng.Intn(len(insuranceCarriers))]
+	case "policy_number":
+		return fmt.Sprintf("POL-%d-%d", rng.Intn(9999)+1000, rng.Intn(999999)+100000)
+	case "group_number":
+		return fmt.Sprintf("GRP%03d", rng.Intn(999)+1)
+	case "member_id":
+		return fmt.Sprintf("MEM%d%03d", rng.Intn(99)+10, rng.Intn(999)+1)
+	default:
+		// Fallback for unknown columns
+		return "data_" + fmt.Sprint(rng.Intn(9999))
+	}
+}
+
+// generateMeaningfulColumnValue creates appropriate fake data for meaningful columns (kept for backward compatibility)
 func (c *LoadTestController) generateMeaningfulColumnValue(columnName string) string {
 	r := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(1000))))
 	
@@ -733,7 +861,7 @@ func (c *LoadTestController) insertTestDataWithProgress(ctx context.Context, tes
 	case "brute_force":
 		return c.insertBruteForceWithProgress(ctx, testData, startTime, testID)
 	case "batched", "optimized": // Support both names for backward compatibility
-		return c.insertOptimizedWithProgress(ctx, testData, startTime, testID)
+		return c.insertBatchedWithProgress(ctx, testData, startTime, testID)
 	default:
 		return 0, fmt.Errorf("unknown insertion method: %s", method)
 	}
@@ -809,36 +937,49 @@ func (c *LoadTestController) insertBruteForceWithProgress(ctx context.Context, t
 	return insertTime, nil
 }
 
-// insertOptimizedWithProgress performs batch inserts for better performance
-func (c *LoadTestController) insertOptimizedWithProgress(ctx context.Context, testData []*TestData, startTime time.Time, testID string) (int, error) {
-	log := c.log.Function("insertOptimized")
+// insertBatchedWithProgress performs batch inserts with progress monitoring
+func (c *LoadTestController) insertBatchedWithProgress(ctx context.Context, testData []*TestData, startTime time.Time, testID string) (int, error) {
+	log := c.log.Function("insertBatched")
 	
-	// Use default batch size of 1000, or configure based on data size
-	batchSize := 1000
+	// Use default batch size of 2000, or configure based on data size
+	batchSize := 2000
 	if len(testData) < 100 {
 		batchSize = len(testData) // Use smaller batches for small datasets
 	}
 	
-	// Send progress update for optimized batch insertion start
+	totalRecords := len(testData)
+	loadTestUUID := testData[0].LoadTestID // All records have the same LoadTestID
+	
+	// Send initial progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
 		"phase":            "insertion",
-		"overallProgress":  90,
-		"phaseProgress":    50,
+		"overallProgress":  85,
+		"phaseProgress":    0,
 		"currentPhase":     "Inserting into Database",
 		"rowsProcessed":    0,
 		"rowsPerSecond":    0,
 		"eta":              "Calculating...",
-		"message":          fmt.Sprintf("Performing optimized batch insertion (%d records in batches of %d)...", len(testData), batchSize),
+		"message":          fmt.Sprintf("Starting batched insertion (%d records in batches of %d)...", totalRecords, batchSize),
 	})
 	
-	if err := c.testDataRepo.CreateBatch(ctx, testData, batchSize); err != nil {
-		insertTime := int(time.Since(startTime).Milliseconds())
-		_ = log.Err("optimized batch insertion failed", err, "recordCount", len(testData), "batchSize", batchSize)
+	// Start progress monitoring goroutine
+	progressDone := make(chan bool)
+	go c.monitorInsertProgress(ctx, loadTestUUID.String(), totalRecords, startTime, testID, progressDone)
+	
+	// Perform the actual batch insertion (single call - let GORM handle internal batching)
+	err := c.testDataRepo.CreateBatch(ctx, testData, batchSize)
+	
+	// Stop progress monitoring
+	close(progressDone)
+	
+	insertTime := int(time.Since(startTime).Milliseconds())
+	
+	if err != nil {
+		_ = log.Err("batched insertion failed", err, "recordCount", len(testData), "batchSize", batchSize)
 		return insertTime, fmt.Errorf("batch insertion failed: %w", err)
 	}
 	
-	insertTime := int(time.Since(startTime).Milliseconds())
-	rowsPerSecond := int(float64(len(testData)) / (float64(insertTime) / 1000))
+	rowsPerSecond := int(float64(totalRecords) / (float64(insertTime) / 1000))
 	
 	// Send final progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -846,18 +987,113 @@ func (c *LoadTestController) insertOptimizedWithProgress(ctx context.Context, te
 		"overallProgress":  100,
 		"phaseProgress":    100,
 		"currentPhase":     "Database Insertion Complete",
-		"rowsProcessed":    len(testData),
+		"rowsProcessed":    totalRecords,
 		"rowsPerSecond":    rowsPerSecond,
 		"eta":              "Done",
-		"message":          fmt.Sprintf("Successfully inserted %d records using optimized batch method", len(testData)),
+		"message":          fmt.Sprintf("Successfully inserted all %d records using batched method", totalRecords),
 	})
 	
-	log.Info("optimized batch insertion completed", 
-		"totalRecords", len(testData),
+	log.Info("batched insertion completed", 
+		"totalRecords", totalRecords,
 		"batchSize", batchSize,
-		"insertTimeMs", insertTime)
+		"insertTimeMs", insertTime,
+		"rowsPerSecond", rowsPerSecond)
 	
 	return insertTime, nil
+}
+
+// monitorInsertProgress monitors the insertion progress by periodically checking the database count
+func (c *LoadTestController) monitorInsertProgress(ctx context.Context, loadTestID string, totalRecords int, startTime time.Time, testID string, done chan bool) {
+	log := c.log.Function("monitorInsertProgress")
+	
+	ticker := time.NewTicker(2 * time.Second) // Check every 2 seconds
+	defer ticker.Stop()
+	
+	lastCount := int64(0)
+	lastCheckTime := startTime
+	
+	for {
+		select {
+		case <-done:
+			log.Debug("Progress monitoring stopped", "testID", testID)
+			return
+		case <-ticker.C:
+			// Get current count of inserted records
+			count, err := c.testDataRepo.CountByLoadTestID(ctx, loadTestID)
+			if err != nil {
+				log.Warn("Failed to get count for progress monitoring", "error", err, "testID", testID)
+				continue
+			}
+			
+			log.Debug("Progress monitoring check", 
+				"testID", testID,
+				"currentCount", count,
+				"lastCount", lastCount,
+				"totalRecords", totalRecords)
+			
+			currentTime := time.Now()
+			elapsed := currentTime.Sub(startTime)
+			
+			// Calculate metrics
+			overallProgress := float64(count) / float64(totalRecords)
+			phaseProgress := overallProgress * 100
+			finalOverallProgress := 85 + (overallProgress * 15) // 85% to 100%
+			
+			// Calculate rows per second (overall rate)
+			rowsPerSecond := int(float64(count) / elapsed.Seconds())
+			if elapsed.Seconds() < 1 {
+				rowsPerSecond = 0 // Avoid division by very small numbers
+			}
+			
+			// Calculate ETA based on current progress
+			eta := "Calculating..."
+			if count > lastCount && rowsPerSecond > 0 {
+				remaining := totalRecords - int(count)
+				if remaining > 0 {
+					etaSeconds := remaining / rowsPerSecond
+					if etaSeconds < 60 {
+						eta = fmt.Sprintf("%ds", etaSeconds)
+					} else if etaSeconds < 3600 {
+						eta = fmt.Sprintf("%dm %ds", etaSeconds/60, etaSeconds%60)
+					} else {
+						eta = fmt.Sprintf("%dh %dm", etaSeconds/3600, (etaSeconds%3600)/60)
+					}
+				} else {
+					eta = "Done"
+				}
+			}
+			
+			// Only send update if there's been progress or it's been a while
+			timeSinceLastCheck := currentTime.Sub(lastCheckTime)
+			if count > lastCount || timeSinceLastCheck > 2*time.Second {
+				c.wsManager.SendLoadTestProgress(testID, map[string]any{
+					"phase":            "insertion",
+					"overallProgress":  finalOverallProgress,
+					"phaseProgress":    phaseProgress,
+					"currentPhase":     "Inserting into Database",
+					"rowsProcessed":    int(count),
+					"rowsPerSecond":    rowsPerSecond,
+					"eta":              eta,
+					"message":          fmt.Sprintf("Inserted %d/%d records (%s elapsed)...", count, totalRecords, elapsed.Round(time.Second)),
+				})
+				
+				lastCount = count
+				lastCheckTime = currentTime
+				
+				log.Debug("Progress update sent", 
+					"insertedCount", count,
+					"totalRecords", totalRecords,
+					"progress", fmt.Sprintf("%.1f%%", phaseProgress),
+					"rowsPerSecond", rowsPerSecond)
+			}
+			
+			// If we've reached the total, we can exit early
+			if count >= int64(totalRecords) {
+				log.Debug("All records inserted, stopping progress monitoring", "testID", testID)
+				return
+			}
+		}
+	}
 }
 
 // updateLoadTestError updates the load test with error information

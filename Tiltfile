@@ -45,19 +45,20 @@ docker_build(
     context='./client',
     dockerfile='./client/Dockerfile.dev',
     live_update=[
-        # Sync only source directories
-        # sync('./client/src', '/app/src'),
-        # sync('./client/public', '/app/public'),
-        # # Sync config files individually
-        # sync('./client/package.json', '/app/package.json'),
-        # # REMOVED sync for package-lock.json
-        # sync('./client/vite.config.ts', '/app/vite.config.ts'),
-        # sync('./client/tsconfig.json', '/app/tsconfig.json'),
-        # sync('./client/index.html', '/app/index.html'),
-        # sync('./client/.env', '/app/.env'),
-        # Run npm ci when package.json changes
-        # run('npm ci', trigger=['./client/package.json']),
-        run('npm install', trigger=['./client/package.json', './client/package-lock.json'])
+        # ALL SYNC STEPS MUST COME FIRST
+        # Sync package files for dependency management
+        sync('./client/package.json', '/app/package.json'),
+        sync('./client/package-lock.json', '/app/package-lock.json'),
+        # Sync source directories for hot reloading
+        sync('./client/src', '/app/src'),
+        sync('./client/public', '/app/public'),
+        # Sync config files
+        sync('./client/vite.config.ts', '/app/vite.config.ts'),
+        sync('./client/tsconfig.json', '/app/tsconfig.json'),
+        sync('./client/index.html', '/app/index.html'),
+        # ALL RUN STEPS MUST COME AFTER SYNC STEPS
+        # Run npm install when package files change
+        run('npm install', trigger=['./client/package.json', './client/package-lock.json']),
     ],
     ignore=[
         'node_modules/', 

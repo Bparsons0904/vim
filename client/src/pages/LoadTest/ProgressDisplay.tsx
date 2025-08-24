@@ -35,6 +35,18 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
   });
 
   const [startTime, setStartTime] = createSignal(Date.now());
+  const [currentTime, setCurrentTime] = createSignal(Date.now());
+
+  // Update current time every second for elapsed time display
+  createEffect(() => {
+    if (props.test.status === 'running') {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now());
+      }, 1000);
+      
+      onCleanup(() => clearInterval(interval));
+    }
+  });
 
   // Real WebSocket-based progress updates
   createEffect(() => {
@@ -177,7 +189,7 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
             <div class={styles.metric}>
               <span class={styles.metricLabel}>Time Elapsed</span>
               <span class={styles.metricValue}>
-                {Math.floor((Date.now() - startTime()) / 1000)}s
+                {Math.floor((currentTime() - startTime()) / 1000)}s
               </span>
             </div>
             <div class={styles.metric}>

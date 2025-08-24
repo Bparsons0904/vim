@@ -7,17 +7,18 @@ RUN apk add --no-cache git
 # Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
+# Copy package files first for better dependency caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install all dependencies (dev + prod) for development
+RUN npm ci && npm cache clean --force
 
-# Copy the rest of the application
+# Copy the rest of the application (source code changes frequently)
 COPY . .
 
 # Expose the port Vite runs on
 EXPOSE 3020
 
-# Ensure dependencies are up to date before starting
+# For development, always ensure latest dependencies are installed
+# This handles cases where package.json changed after image build
 CMD ["sh", "-c", "npm install && npm run dev"]
