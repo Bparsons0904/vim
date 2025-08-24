@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	gormLogger "gorm.io/gorm/logger"
 )
 
 // testDataPool helps reuse TestData objects to reduce GC pressure.
@@ -102,11 +104,17 @@ func RawSQLWorkerConfig() *WorkerConfig {
 	numWorkers := runtime.NumCPU()
 	return &WorkerConfig{
 		NumWorkers:    numWorkers,
-		BatchSize:     2000,  // Can be larger with raw SQL
+		BatchSize:     2000, // Can be larger with raw SQL
 		BufferSize:    numWorkers * 4,
 		BatchesPerTxn: 4,
 		InsertMethod:  InsertMethodRawSQL,
 	}
+}
+
+// TimingResult contains the timing breakdown for database operations
+type TimingResult struct {
+	ParseTime  int // milliseconds spent parsing CSV
+	InsertTime int // milliseconds spent inserting to database
 }
 
 // InsertOptimizedWithProgress performs streaming CSV parsing with concurrent batch processing using GORM
@@ -117,7 +125,7 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	totalRecords int,
 	startTime time.Time,
 	testID string,
-) (int, error) {
+) (TimingResult, error) {
 	config := DefaultWorkerConfig()
 	config.InsertMethod = InsertMethodGORM
 	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
@@ -131,7 +139,7 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithRawSQL(
 	totalRecords int,
 	startTime time.Time,
 	testID string,
-) (int, error) {
+) (TimingResult, error) {
 	config := RawSQLWorkerConfig()
 	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
 }
@@ -144,15 +152,13 @@ func (c *OptimizedLoadTestController) InsertLudicrousSpeed(
 	totalRecords int,
 	startTime time.Time,
 	testID string,
-) (int, error) {
-	// PostgreSQL extended protocol is limited to 65,535 parameters
-	// With 28 columns per record: 65535 ÷ 28 = ~2340 max records per batch
-	// Use 2000 for safety margin and optimal performance
+) (TimingResult, error) {
+	// Ludicrous speed: Aggressive settings with raw SQL and larger batches
 	config := &WorkerConfig{
 		NumWorkers:    runtime.NumCPU(),
-		BatchSize:     2000,  // Optimized for PostgreSQL parameter limits
-		BufferSize:    runtime.NumCPU() * 4,
-		BatchesPerTxn: 4,
+		BatchSize:     2000,                 // Larger batches for ludicrous speed
+		BufferSize:    runtime.NumCPU() * 6, // Larger buffer for ludicrous
+		BatchesPerTxn: 1,                    // Minimal transaction overhead
 		InsertMethod:  InsertMethodRawSQL,
 	}
 	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
@@ -167,8 +173,7 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 	startTime time.Time,
 	testID string,
 	config *WorkerConfig,
-) (int, error) {
-
+) (TimingResult, error) {
 	c.log.Info("Starting optimized insertion",
 		"totalRecords", totalRecords,
 		"workers", config.NumWorkers,
@@ -179,7 +184,7 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 	// Open CSV file
 	file, err := os.Open(csvPath)
 	if err != nil {
-		return 0, fmt.Errorf("failed to open CSV file: %w", err)
+		return TimingResult{}, fmt.Errorf("failed to open CSV file: %w", err)
 	}
 	defer file.Close()
 
@@ -192,9 +197,9 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 		BatchesProcessed: 0,
 	}
 
-	// Skip index dropping for smaller datasets (under 100k records)
+	// Skip index dropping for smaller datasets (under 10 million records)
 	var indexDropTime time.Duration
-	if totalRecords >= 100000 {
+	if totalRecords >= 10000000 {
 		indexDropStart := time.Now()
 		if err := c.dropIndexesTemporarily(ctx); err != nil {
 			c.log.Warn("Failed to drop indexes, continuing anyway", "error", err)
@@ -240,13 +245,13 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 		if parseErr != nil {
 			close(batchChan)
 			progressDone <- true
-			return 0, fmt.Errorf("CSV parsing failed: %w", parseErr)
+			return TimingResult{}, fmt.Errorf("CSV parsing failed: %w", parseErr)
 		}
 	case workerErr := <-errorChan:
 		if workerErr != nil {
 			close(batchChan)
 			progressDone <- true
-			return 0, fmt.Errorf("worker failed during parsing: %w", workerErr)
+			return TimingResult{}, fmt.Errorf("worker failed during parsing: %w", workerErr)
 		}
 	}
 	parseTime := time.Since(parseStartTime)
@@ -279,13 +284,13 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 	// Check for worker errors
 	for err := range errorChan {
 		if err != nil {
-			return 0, fmt.Errorf("worker error: %w", err)
+			return TimingResult{}, fmt.Errorf("worker error: %w", err)
 		}
 	}
 
 	// Recreate indexes (only if we dropped them)
 	var indexRecreateTime time.Duration
-	if totalRecords >= 100000 {
+	if totalRecords >= 10000000 {
 		indexRecreateStart := time.Now()
 		if err := c.recreateIndexes(ctx); err != nil {
 			c.log.Warn("Failed to recreate indexes", "error", err)
@@ -342,7 +347,10 @@ func (c *OptimizedLoadTestController) insertWithConfig(
 		"insertTimeMs", insertTime,
 		"rowsPerSecond", rowsPerSecond)
 
-	return insertTime, nil
+	return TimingResult{
+		ParseTime:  int(parseTime.Milliseconds()),
+		InsertTime: insertTime,
+	}, nil
 }
 
 // parseCSVStreaming reads CSV file and feeds batches to workers
@@ -493,15 +501,7 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 			}
 		}
 
-		// Minimal logging - only every 10k rows for large datasets
-		if rowsRead%10000 == 0 && rowsRead > 0 {
-			elapsed := time.Since(parseStart)
-			var rowsPerSec float64
-			if elapsed.Seconds() > 0 {
-				rowsPerSec = float64(rowsRead) / elapsed.Seconds()
-			}
-			c.log.Info("Parse progress", "rows", rowsRead, "rps", int(rowsPerSec))
-		}
+		// Progress logging removed for cleaner output
 	}
 
 	// Send remaining records in final batch
@@ -553,7 +553,7 @@ func (c *OptimizedLoadTestController) insertWorker(
 		}
 
 		if err != nil {
-			errorChan <- fmt.Errorf("worker %d failed to insert batch %d using %s: %w", 
+			errorChan <- fmt.Errorf("worker %d failed to insert batch %d using %s: %w",
 				workerID, batch.BatchNum, config.InsertMethod, err)
 			// Return failed objects to the pool
 			for _, record := range batch.Records {
@@ -615,8 +615,6 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 		return fmt.Errorf("failed to get underlying SQL DB: %w", err)
 	}
 
-	execStart := time.Now()
-
 	// Build a single INSERT statement with multiple VALUE clauses
 	const baseSQL = `INSERT INTO test_data (
 		id, created_at, updated_at, deleted_at, load_test_id, birth_date, start_date, end_date,
@@ -637,7 +635,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
 		}
 		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
-		
+
 		// Add all values in the same order as the columns
 		// Helper function to safely dereference string pointers
 		getStringValue := func(ptr *string) interface{} {
@@ -646,7 +644,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 			}
 			return *ptr
 		}
-		
+
 		args = append(args,
 			record.ID,
 			getStringValue(record.CreatedAt),
@@ -693,24 +691,20 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 
 	// Execute the prepared statement
 	_, err = sqlDB.ExecContext(ctx, finalSQL, args...)
-	execTime := time.Since(execStart)
-
-	// Log slow operations
-	if execTime > 50*time.Millisecond {
-		c.log.Info("Slow raw SQL batch operation",
-			"recordCount", len(records),
-			"execTime", execTime,
-			"batchSize", config.BatchSize)
-	}
-
+	// Performance logging removed for cleaner bulk operation logs
 	if err != nil {
 		// Log first few args for debugging
 		debugArgs := args
 		if len(debugArgs) > 10 {
 			debugArgs = args[:10]
 		}
-		return fmt.Errorf("raw SQL batch insert failed (records: %d, args: %d): %w. First few args: %v", 
-			len(records), len(args), err, debugArgs)
+		return fmt.Errorf(
+			"raw SQL batch insert failed (records: %d, args: %d): %w. First few args: %v",
+			len(records),
+			len(args),
+			err,
+			debugArgs,
+		)
 	}
 
 	return nil
@@ -726,8 +720,6 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 	if len(records) == 0 {
 		return nil
 	}
-
-	execStart := time.Now()
 
 	// Build a single INSERT statement with multiple VALUE clauses
 	const baseSQL = `INSERT INTO test_data (
@@ -749,7 +741,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
 		}
 		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
-		
+
 		// Add all values in the same order as the columns
 		// Helper function to safely dereference string pointers
 		getStringValue := func(ptr *string) interface{} {
@@ -758,7 +750,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 			}
 			return *ptr
 		}
-		
+
 		args = append(args,
 			record.ID,
 			getStringValue(record.CreatedAt),
@@ -796,16 +788,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 
 	// Execute using the dedicated connection
 	_, err := connectionPool.ExecContext(ctx, finalSQL, args...)
-	execTime := time.Since(execStart)
-
-	// Log slow operations
-	if execTime > 50*time.Millisecond {
-		c.log.Info("Slow raw SQL batch operation (multi-connection)",
-			"recordCount", len(records),
-			"execTime", execTime,
-			"batchSize", config.BatchSize)
-	}
-
+	// Performance logging removed for cleaner bulk operation logs
 	if err != nil {
 		return fmt.Errorf("raw SQL multi-connection batch insert failed: %w", err)
 	}
@@ -876,14 +859,15 @@ func (c *OptimizedLoadTestController) monitorOptimizedProgress(
 
 // dropIndexesTemporarily drops indexes for better insert performance
 func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context) error {
-	db := c.db.SQLWithContext(ctx)
+	db := c.db.SQLWithContext(ctx).
+		Session(&gorm.Session{Logger: gormLogger.Default.LogMode(gormLogger.Silent)})
 
 	// Drop indexes that might slow down bulk inserts
 	// Note: Be careful with this in production - ensure indexes are recreated
 	queries := []string{
+		"ALTER TABLE test_data DROP CONSTRAINT IF EXISTS test_data_pkey",
 		"DROP INDEX IF EXISTS idx_test_data_load_test_id",
-		"DROP INDEX IF EXISTS idx_test_data_email",
-		"DROP INDEX IF EXISTS idx_test_data_phone",
+		"DROP INDEX IF EXISTS idx_test_data_deleted_at",
 	}
 
 	for _, query := range queries {
@@ -898,18 +882,34 @@ func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context
 
 // recreateIndexes recreates the indexes after bulk insert
 func (c *OptimizedLoadTestController) recreateIndexes(ctx context.Context) error {
-	db := c.db.SQLWithContext(ctx)
+	db := c.db.SQLWithContext(ctx).
+		Session(&gorm.Session{Logger: gormLogger.Default.LogMode(gormLogger.Silent)})
 
 	// Recreate important indexes
-	queries := []string{
-		"CREATE INDEX IF NOT EXISTS idx_test_data_load_test_id ON test_data(load_test_id)",
-		// "CREATE INDEX IF NOT EXISTS idx_test_data_email ON test_data(email)",
-		// "CREATE INDEX IF NOT EXISTS idx_test_data_phone ON test_data(phone)",
+	queries := []struct {
+		sql         string
+		description string
+	}{
+		{
+			sql:         "ALTER TABLE test_data ADD CONSTRAINT test_data_pkey PRIMARY KEY (id)",
+			description: "primary key constraint",
+		},
+		{
+			sql:         "CREATE INDEX IF NOT EXISTS idx_test_data_load_test_id ON test_data(load_test_id)",
+			description: "load_test_id foreign key index",
+		},
 	}
 
 	for _, query := range queries {
-		if err := db.Exec(query).Error; err != nil {
-			return fmt.Errorf("failed to recreate index: %w", err)
+		if err := db.Exec(query.sql).Error; err != nil {
+			// For primary key, check if it already exists and continue
+			if strings.Contains(err.Error(), "multiple primary keys") ||
+				strings.Contains(err.Error(), "already exists") {
+				c.log.Debug("Index already exists, skipping", "description", query.description)
+				continue
+			}
+			c.log.Er("Failed to recreate index", err, "description", query.description)
+			return fmt.Errorf("failed to recreate %s: %w", query.description, err)
 		}
 	}
 

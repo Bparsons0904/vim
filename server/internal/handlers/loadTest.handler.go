@@ -29,6 +29,7 @@ func NewLoadTestHandler(app app.App, router fiber.Router) *LoadTestHandler {
 func (h *LoadTestHandler) Register() {
 	loadTests := h.router.Group("/load-tests")
 	loadTests.Post("/", h.createLoadTest)
+	loadTests.Get("/performance-summary", h.getPerformanceSummary)
 	loadTests.Get("/:id", h.getLoadTest)
 	loadTests.Get("/", h.getLoadTests)
 }
@@ -83,4 +84,17 @@ func (h *LoadTestHandler) getLoadTests(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "success", "loadTests": loadTests})
+}
+
+func (h *LoadTestHandler) getPerformanceSummary(c *fiber.Ctx) error {
+	log := h.log.Function("getPerformanceSummary")
+
+	summary, err := h.controller.GetPerformanceSummary(c.Context())
+	if err != nil {
+		log.Er("failed to get performance summary", err)
+		return c.Status(fiber.StatusInternalServerError).
+			JSON(fiber.Map{"message": "failed to get performance summary", "error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "success", "performanceSummary": summary})
 }

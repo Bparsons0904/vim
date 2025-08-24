@@ -13,7 +13,6 @@ import (
 
 type LoadTestComparisonController struct {
 	optimizedController *OptimizedLoadTestController
-	ludicrousController *LudicrousLoadTestController
 	log                 logger.Logger
 }
 
@@ -24,9 +23,13 @@ func NewLoadTestComparisonController(
 	wsManager WSManager,
 ) *LoadTestComparisonController {
 	return &LoadTestComparisonController{
-		optimizedController: NewOptimizedLoadTestController(db, loadTestRepo, testDataRepo, wsManager),
-		ludicrousController: NewLudicrousLoadTestController(db, loadTestRepo, testDataRepo, wsManager),
-		log:                 logger.New("loadTestComparisonController"),
+		optimizedController: NewOptimizedLoadTestController(
+			db,
+			loadTestRepo,
+			testDataRepo,
+			wsManager,
+		),
+		log: logger.New("loadTestComparisonController"),
 	}
 }
 
@@ -83,7 +86,11 @@ func (c *LoadTestComparisonController) CompareInsertionMethods(
 	if optimizedResult.Success && ludicrousResult.Success {
 		if ludicrousResult.TotalTimeMs < optimizedResult.TotalTimeMs {
 			result.Winner = "Ludicrous"
-			improvement := float64(optimizedResult.TotalTimeMs-ludicrousResult.TotalTimeMs) / float64(optimizedResult.TotalTimeMs) * 100
+			improvement := float64(
+				optimizedResult.TotalTimeMs-ludicrousResult.TotalTimeMs,
+			) / float64(
+				optimizedResult.TotalTimeMs,
+			) * 100
 			result.Improvement = fmt.Sprintf("%.1f%% faster", improvement)
 		} else {
 			result.Winner = "Optimized"
@@ -126,19 +133,21 @@ func (c *LoadTestComparisonController) runInsertionTest(
 	loadTestID := uuid.New()
 	startTime := time.Now()
 
-	var totalTimeMs int
+	var timingResult TimingResult
 	var err error
 
 	switch method {
 	case "ludicrous":
-		totalTimeMs, err = c.ludicrousController.InsertLudicrousSpeed(
+		timingResult, err = c.optimizedController.InsertLudicrousSpeed(
 			ctx, csvPath, loadTestID, totalRecords, startTime, testID)
 	case "optimized":
 		fallthrough
 	default:
-		totalTimeMs, err = c.optimizedController.InsertOptimizedWithProgress(
+		timingResult, err = c.optimizedController.InsertOptimizedWithProgress(
 			ctx, csvPath, loadTestID, totalRecords, startTime, testID)
 	}
+
+	totalTimeMs := timingResult.ParseTime + timingResult.InsertTime
 
 	result.TotalTimeMs = totalTimeMs
 	if err != nil {
@@ -150,8 +159,8 @@ func (c *LoadTestComparisonController) runInsertionTest(
 		if totalTimeMs > 0 {
 			result.RowsPerSec = int(float64(totalRecords) / (float64(totalTimeMs) / 1000))
 		}
-		c.log.Info("Insertion test completed", 
-			"method", method, 
+		c.log.Info("Insertion test completed",
+			"method", method,
 			"totalTimeMs", totalTimeMs,
 			"rowsPerSec", result.RowsPerSec)
 	}
@@ -166,3 +175,4 @@ func (c *LoadTestComparisonController) cleanupTestData(ctx context.Context, meth
 	c.log.Info("Would cleanup test data for method", "method", method)
 	return nil
 }
+

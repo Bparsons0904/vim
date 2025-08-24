@@ -1,6 +1,9 @@
 import { Component, Show, For, createMemo } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
 import { Button } from "@components/common/ui/Button/Button";
+import { TestHistory } from "./components/TestHistory";
+import { PerformanceSummary as PerformanceSummaryComponent } from "./components/PerformanceSummary";
+import { usePerformanceSummary } from "@services/api/hooks/loadtest.hooks";
 import styles from "./ResultsDashboard.module.scss";
 import { LoadTestResult } from "./LoadTest";
 import { ApiClientError, NetworkError } from "@services/api/apiTypes";
@@ -13,6 +16,8 @@ interface ResultsDashboardProps {
 }
 
 export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
+  const performanceSummaryQuery = usePerformanceSummary();
+  
   const completedTests = createMemo(() => 
     props.testHistory.filter(test => test.status === 'completed')
   );
@@ -38,31 +43,6 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
     return `${rowsPerSecond.toLocaleString()} rows/sec`;
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'completed':
-        return 'var(--color-success)';
-      case 'running':
-        return 'var(--color-primary)';
-      case 'failed':
-        return 'var(--color-error)';
-      default:
-        return 'var(--color-text-secondary)';
-    }
-  };
-
-  const getStatusIcon = (status: string): string => {
-    switch (status) {
-      case 'completed':
-        return '✓';
-      case 'running':
-        return '⟳';
-      case 'failed':
-        return '✗';
-      default:
-        return '?';
-    }
-  };
 
   const getBestPerformance = createMemo(() => {
     const completed = completedTests();
@@ -102,16 +82,43 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
               <div class={styles.testStatus}>
                 <span 
                   class={styles.statusIcon}
-                  style={{ color: getStatusColor(props.currentTest!.status) }}
+                  style={{ color: (() => {
+                    switch (props.currentTest!.status) {
+                      case 'completed': return 'var(--color-success)';
+                      case 'running': return 'var(--color-primary)';
+                      case 'failed': return 'var(--color-error)';
+                      default: return 'var(--color-text-secondary)';
+                    }
+                  })() }}
                 >
-                  {getStatusIcon(props.currentTest!.status)}
+                  {(() => {
+                    switch (props.currentTest!.status) {
+                      case 'completed': return '✓';
+                      case 'running': return '⟳';
+                      case 'failed': return '✗';
+                      default: return '?';
+                    }
+                  })()}
                 </span>
                 <span class={styles.statusText}>
                   {props.currentTest!.status.charAt(0).toUpperCase() + props.currentTest!.status.slice(1)}
                 </span>
               </div>
               <div class={styles.testMethod}>
-                {props.currentTest!.method === 'optimized' ? 'Optimized' : 'Brute Force'}
+                {(() => {
+                  switch (props.currentTest!.method) {
+                    case 'brute_force':
+                      return 'Brute Force';
+                    case 'batched':
+                      return 'Batched';
+                    case 'optimized':
+                      return 'Optimized';
+                    case 'ludicrous':
+                      return 'Ludicrous Speed';
+                    default:
+                      return props.currentTest!.method;
+                  }
+                })()}
               </div>
             </div>
             
@@ -193,93 +200,19 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
         </Card>
       </Show>
 
+      {/* Performance Summary */}
+      <PerformanceSummaryComponent 
+        summaries={performanceSummaryQuery.data?.performanceSummary || []}
+        isLoading={performanceSummaryQuery.isLoading}
+        error={performanceSummaryQuery.error}
+      />
+
       {/* Test History */}
-      <Card class={styles.historyCard}>
-        <div class={styles.historyHeader}>
-          <h2>Test History</h2>
-          <Show when={props.testHistory.length > 0}>
-            <Button variant="secondary" size="sm">
-              Export Results
-            </Button>
-          </Show>
-        </div>
-        
-        <Show when={props.historyError}>
-          <div class={styles.errorState}>
-            <p>Failed to load test history</p>
-            <p class={styles.errorSubtext}>
-              {props.historyError instanceof ApiClientError 
-                ? props.historyError.message 
-                : 'Please check your connection and try again'}
-            </p>
-          </div>
-        </Show>
-
-        <Show when={props.isHistoryLoading}>
-          <div class={styles.loadingState}>
-            <p>Loading test history...</p>
-          </div>
-        </Show>
-
-        <Show 
-          when={!props.isHistoryLoading && !props.historyError && props.testHistory.length > 0}
-          fallback={
-            <Show when={!props.isHistoryLoading && !props.historyError}>
-              <div class={styles.emptyState}>
-                <p>No tests completed yet</p>
-                <p class={styles.emptySubtext}>Start your first performance test to see results here</p>
-              </div>
-            </Show>
-          }
-        >
-          <div class={styles.historyList}>
-            <For each={sortedTestHistory().slice(0, 10)}>
-              {(test, index) => (
-                <div class={styles.historyItem}>
-                  <div class={styles.historyHeader}>
-                    <div class={styles.historyTitle}>
-                      <span 
-                        class={styles.statusIcon}
-                        style={{ color: getStatusColor(test.status) }}
-                      >
-                        {getStatusIcon(test.status)}
-                      </span>
-                      Test #{index() + 1}
-                    </div>
-                    <div class={styles.historyMethod}>
-                      {test.method === 'optimized' ? 'Optimized' : 'Brute Force'}
-                    </div>
-                  </div>
-                  
-                  <div class={styles.historyDetails}>
-                    <span>{test.rows.toLocaleString()} rows</span>
-                    <span>{test.columns} columns</span>
-                    <Show when={test.status === 'completed' && test.totalTime}>
-                      <span>{formatTime(test.totalTime)}</span>
-                      <span>{formatRate(test.rows, test.totalTime)}</span>
-                    </Show>
-                  </div>
-                  
-                  <Show when={test.status === 'failed' && test.errorMessage}>
-                    <div class={styles.errorPreview}>
-                      Error: {test.errorMessage!.substring(0, 50)}
-                      {test.errorMessage!.length > 50 && '...'}
-                    </div>
-                  </Show>
-                </div>
-              )}
-            </For>
-            
-            <Show when={sortedTestHistory().length > 10}>
-              <div class={styles.showMore}>
-                <Button variant="ghost" size="sm">
-                  Show {sortedTestHistory().length - 10} more tests
-                </Button>
-              </div>
-            </Show>
-          </div>
-        </Show>
-      </Card>
+      <TestHistory 
+        tests={sortedTestHistory()}
+        isLoading={props.isHistoryLoading}
+        error={props.historyError}
+      />
 
     </div>
   );

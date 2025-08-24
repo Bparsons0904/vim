@@ -5,9 +5,11 @@ import {
   getLoadTestStatus, 
   getLoadTestHistory, 
   deleteLoadTest,
+  getPerformanceSummary,
   StartLoadTestResponse,
   GetLoadTestResponse,
-  DeleteLoadTestResponse
+  DeleteLoadTestResponse,
+  GetPerformanceSummaryResponse
 } from "../endpoints/loadtest.api";
 import { LoadTestConfig, LoadTestResult } from "@pages/LoadTest/LoadTest";
 import { ApiClientError, NetworkError } from "../apiTypes";
@@ -29,12 +31,21 @@ export const useLoadTestHistory = (filters?: {
   page?: number;
   limit?: number;
   status?: 'running' | 'completed' | 'failed';
-  method?: 'brute_force' | 'optimized';
+  method?: 'brute_force' | 'batched' | 'optimized' | 'ludicrous';
 }) => {
   return useQuery(() => ({
     queryKey: queryKeys.loadTestHistory(filters),
     queryFn: () => getLoadTestHistory(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  }));
+};
+
+// Query hook for getting performance summary
+export const usePerformanceSummary = () => {
+  return useQuery(() => ({
+    queryKey: ['performance-summary'],
+    queryFn: () => getPerformanceSummary(),
+    staleTime: 10 * 60 * 1000, // 10 minutes - summary data changes less frequently
   }));
 };
 
@@ -137,6 +148,11 @@ export const useLoadTestWebSocketUpdates = () => {
     // Invalidate history to include completed test with final metrics
     queryClient.invalidateQueries({ 
       queryKey: invalidationHelpers.invalidateLoadTests() 
+    });
+
+    // Invalidate performance summary since new completed test affects statistics
+    queryClient.invalidateQueries({ 
+      queryKey: ['performance-summary'] 
     });
   };
 

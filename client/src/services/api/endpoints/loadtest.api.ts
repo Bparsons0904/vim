@@ -25,6 +25,23 @@ export interface DeleteLoadTestResponse {
   message: string;
 }
 
+export interface PerformanceSummary {
+  method: string;
+  testCount: number;
+  avgRowsPerSec: number;
+  maxRowsPerSec: number;
+  minRowsPerSec: number;
+  p95RowsPerSec: number;
+  avgTotalTime: number;
+  maxTotalTime: number;
+  minTotalTime: number;
+}
+
+export interface GetPerformanceSummaryResponse {
+  message: string;
+  performanceSummary: PerformanceSummary[];
+}
+
 // Start a new load test
 export const startLoadTest = async (config: LoadTestConfig): Promise<StartLoadTestResponse> => {
   return postApi<StartLoadTestResponse, StartLoadTestRequest>('load-tests', {
@@ -51,6 +68,11 @@ export const getLoadTestHistory = async (params?: {
 // Delete a load test and its data
 export const deleteLoadTest = async (testId: string): Promise<DeleteLoadTestResponse> => {
   return deleteApi<DeleteLoadTestResponse>(`load-tests/${testId}`);
+};
+
+// Get performance summary statistics grouped by test method
+export const getPerformanceSummary = async (): Promise<GetPerformanceSummaryResponse> => {
+  return getApi<GetPerformanceSummaryResponse>('load-tests/performance-summary');
 };
 
 // WebSocket event types for real-time updates

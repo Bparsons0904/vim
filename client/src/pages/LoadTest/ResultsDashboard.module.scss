@@ -6,6 +6,11 @@
   display: flex;
   flex-direction: column;
   gap: $spacing-lg;
+  
+  // Add some breathing room between sections
+  > * + * {
+    margin-top: $spacing-lg;
+  }
 }
 
 .currentTestCard {

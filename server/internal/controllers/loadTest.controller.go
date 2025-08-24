@@ -129,6 +129,116 @@ func (c *LoadTestController) GetAllLoadTests(ctx context.Context) ([]*LoadTest, 
 	return c.loadTestRepo.GetAll(ctx)
 }
 
+// PerformanceSummary represents performance metrics grouped by test method
+type PerformanceSummary struct {
+	Method         string  `json:"method"`
+	TestCount      int     `json:"testCount"`
+	AvgRowsPerSec  int     `json:"avgRowsPerSec"`
+	MaxRowsPerSec  int     `json:"maxRowsPerSec"`
+	MinRowsPerSec  int     `json:"minRowsPerSec"`
+	P95RowsPerSec  int     `json:"p95RowsPerSec"`
+	AvgTotalTime   int     `json:"avgTotalTime"`   // milliseconds
+	MaxTotalTime   int     `json:"maxTotalTime"`   // milliseconds
+	MinTotalTime   int     `json:"minTotalTime"`   // milliseconds
+}
+
+// GetPerformanceSummary retrieves performance statistics grouped by test method
+func (c *LoadTestController) GetPerformanceSummary(ctx context.Context) ([]*PerformanceSummary, error) {
+	log := c.log.Function("GetPerformanceSummary")
+	
+	// Get all completed load tests
+	allTests, err := c.loadTestRepo.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get load tests: %w", err)
+	}
+	
+	// Filter completed tests and group by method
+	methodGroups := make(map[string][]*LoadTest)
+	for _, test := range allTests {
+		if test.Status == "completed" && test.TotalTime != nil && *test.TotalTime > 0 {
+			methodGroups[test.Method] = append(methodGroups[test.Method], test)
+		}
+	}
+	
+	var summaries []*PerformanceSummary
+	
+	// Calculate statistics for each method
+	for method, tests := range methodGroups {
+		if len(tests) == 0 {
+			continue
+		}
+		
+		summary := &PerformanceSummary{
+			Method:    method,
+			TestCount: len(tests),
+		}
+		
+		// Calculate rows per second for each test and collect stats
+		var rowsPerSecondValues []int
+		var totalTimeValues []int
+		
+		for _, test := range tests {
+			if test.TotalTime != nil && *test.TotalTime > 0 {
+				rowsPerSec := int(float64(test.Rows) / (float64(*test.TotalTime) / 1000.0))
+				rowsPerSecondValues = append(rowsPerSecondValues, rowsPerSec)
+				totalTimeValues = append(totalTimeValues, *test.TotalTime)
+			}
+		}
+		
+		if len(rowsPerSecondValues) > 0 {
+			// Sort for percentile calculations
+			sortedRPS := make([]int, len(rowsPerSecondValues))
+			copy(sortedRPS, rowsPerSecondValues)
+			for i := 0; i < len(sortedRPS); i++ {
+				for j := i + 1; j < len(sortedRPS); j++ {
+					if sortedRPS[i] > sortedRPS[j] {
+						sortedRPS[i], sortedRPS[j] = sortedRPS[j], sortedRPS[i]
+					}
+				}
+			}
+			
+			sortedTimes := make([]int, len(totalTimeValues))
+			copy(sortedTimes, totalTimeValues)
+			for i := 0; i < len(sortedTimes); i++ {
+				for j := i + 1; j < len(sortedTimes); j++ {
+					if sortedTimes[i] > sortedTimes[j] {
+						sortedTimes[i], sortedTimes[j] = sortedTimes[j], sortedTimes[i]
+					}
+				}
+			}
+			
+			// Calculate averages
+			sumRPS := 0
+			sumTime := 0
+			for i, rps := range rowsPerSecondValues {
+				sumRPS += rps
+				sumTime += totalTimeValues[i]
+			}
+			summary.AvgRowsPerSec = sumRPS / len(rowsPerSecondValues)
+			summary.AvgTotalTime = sumTime / len(totalTimeValues)
+			
+			// Min/Max
+			summary.MinRowsPerSec = sortedRPS[0]
+			summary.MaxRowsPerSec = sortedRPS[len(sortedRPS)-1]
+			summary.MinTotalTime = sortedTimes[0]
+			summary.MaxTotalTime = sortedTimes[len(sortedTimes)-1]
+			
+			// P95 (95th percentile)
+			p95Index := int(float64(len(sortedRPS)) * 0.95)
+			if p95Index >= len(sortedRPS) {
+				p95Index = len(sortedRPS) - 1
+			}
+			summary.P95RowsPerSec = sortedRPS[p95Index]
+		}
+		
+		summaries = append(summaries, summary)
+	}
+	
+	log.Info("performance summary calculated", "methodCount", len(summaries))
+	
+	return summaries, nil
+}
+
 // processLoadTest handles the actual load test processing
 func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *LoadTest) {
 	log := c.log.Function("processLoadTest")
@@ -168,7 +278,7 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			"message":          "Starting optimized streaming insertion (parsing + inserting concurrently)...",
 		})
 		
-		insertTime, err := c.optimizedController.InsertOptimizedWithProgress(
+		timingResult, err := c.optimizedController.InsertOptimizedWithProgress(
 			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
 		)
 		if err != nil {
@@ -177,9 +287,11 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			return
 		}
 		
-		// Update load test with completion data (no separate parse time for optimized method)
-		totalTime := csvGenTime + insertTime
-		parseTime := 0 // No separate parse step for optimized method
+		// Update load test with completion data (with actual parse time from optimized method)
+		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
+		insertTime := timingResult.InsertTime
+		parseTime := timingResult.ParseTime
+		totalTime := parseTime + insertTime
 		
 		loadTest.CSVGenTime = &csvGenTime
 		loadTest.ParseTime = &parseTime
@@ -225,7 +337,7 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			"message":          "Starting ludicrous speed insertion (parsing + inserting concurrently)...",
 		})
 		
-		insertTime, err := c.optimizedController.InsertLudicrousSpeed(
+		timingResult, err := c.optimizedController.InsertLudicrousSpeed(
 			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
 		)
 		if err != nil {
@@ -234,9 +346,11 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			return
 		}
 		
-		// Update load test with completion data (no separate parse time for ludicrous method)
-		totalTime := csvGenTime + insertTime
-		parseTime := 0 // No separate parse step for ludicrous method
+		// Update load test with completion data (with actual parse time from ludicrous method)
+		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
+		insertTime := timingResult.InsertTime
+		parseTime := timingResult.ParseTime
+		totalTime := parseTime + insertTime
 		
 		loadTest.CSVGenTime = &csvGenTime
 		loadTest.ParseTime = &parseTime
@@ -311,7 +425,8 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 	}
 
 	// Step 4: Update load test with completion data
-	totalTime := csvGenTime + parseTime + insertTime
+	// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
+	totalTime := parseTime + insertTime
 	loadTest.CSVGenTime = &csvGenTime
 	loadTest.ParseTime = &parseTime
 	loadTest.InsertTime = &insertTime
