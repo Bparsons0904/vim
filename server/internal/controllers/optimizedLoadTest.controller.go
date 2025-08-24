@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"server/internal/database"
 	"server/internal/logger"
 	. "server/internal/models"
@@ -16,6 +17,13 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// testDataPool helps reuse TestData objects to reduce GC pressure.
+var testDataPool = sync.Pool{
+	New: func() any {
+		return new(TestData)
+	},
+}
 
 type OptimizedLoadTestController struct {
 	db           database.DB
@@ -68,11 +76,12 @@ func NewOptimizedLoadTestController(
 
 // DefaultWorkerConfig provides sensible defaults for the optimized insertion
 func DefaultWorkerConfig() *WorkerConfig {
+	numWorkers := runtime.NumCPU()
 	return &WorkerConfig{
-		NumWorkers:    6,    // 6 concurrent workers
-		BatchSize:     2000, // Records per batch
-		BufferSize:    3,    // Buffer size for batch channel
-		BatchesPerTxn: 1,    // Start with 1 batch per transaction, can be tuned
+		NumWorkers:    numWorkers,
+		BatchSize:     2000,
+		BufferSize:    numWorkers * 2, // A larger buffer can help keep workers fed
+		BatchesPerTxn: 1,
 	}
 }
 
@@ -86,13 +95,13 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	testID string,
 ) (int, error) {
 	config := DefaultWorkerConfig()
-	
-	c.log.Info("Starting optimized insertion", 
+
+	c.log.Info("Starting optimized insertion",
 		"totalRecords", totalRecords,
 		"workers", config.NumWorkers,
 		"batchSize", config.BatchSize,
 		"bufferSize", config.BufferSize)
-	
+
 	// Open CSV file
 	file, err := os.Open(csvPath)
 	if err != nil {
@@ -125,7 +134,7 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	// Create channels for producer-consumer pattern
 	batchChan := make(chan *BatchData, config.BufferSize)
 	errorChan := make(chan error, config.NumWorkers)
-	
+
 	// Start progress monitoring goroutine
 	progressDone := make(chan bool)
 	go c.monitorOptimizedProgress(progress, testID, progressDone)
@@ -151,8 +160,12 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 		return 0, fmt.Errorf("CSV parsing failed: %w", err)
 	}
 	parseTime := time.Since(parseStartTime)
-	c.log.Info("CSV parsing completed", "duration", parseTime, "recordsPerSecond", float64(totalRecords)/parseTime.Seconds())
-
+	if parseTime.Seconds() > 0 {
+		c.log.Info("CSV parsing completed", "duration", parseTime, "recordsPerSecond", float64(totalRecords)/parseTime.Seconds())
+	} else {
+		c.log.Info("CSV parsing completed", "duration", parseTime)
+	}
+	
 	// Close batch channel to signal workers to finish
 	close(batchChan)
 
@@ -161,7 +174,7 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	workerWG.Wait()
 	workersWaitTime := time.Since(workersStartWait)
 	c.log.Info("All workers completed", "waitTime", workersWaitTime)
-	
+
 	close(errorChan)
 
 	// Stop progress monitoring
@@ -188,15 +201,18 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	}
 
 	insertTime := int(time.Since(startTime).Milliseconds())
-	
+
 	// Log final timing breakdown
 	progress.mu.RLock()
 	finalProcessed := progress.RecordsProcessed
 	finalBatches := progress.BatchesProcessed
 	progress.mu.RUnlock()
-	
-	rowsPerSecond := int(float64(finalProcessed) / (float64(insertTime) / 1000))
-	
+
+	var rowsPerSecond int
+	if insertTime > 0 {
+		rowsPerSecond = int(float64(finalProcessed) / (float64(insertTime) / 1000))
+	}
+
 	c.log.Info("Optimized insertion timing breakdown",
 		"totalTime", time.Since(startTime),
 		"indexDropTime", indexDropTime,
@@ -206,9 +222,8 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 		"finalProcessed", finalProcessed,
 		"finalBatches", finalBatches,
 		"rowsPerSecond", rowsPerSecond)
-	
-	// Send final progress update
 
+	// Send final progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
 		"phase":            "insertion",
 		"overallProgress":  100,
@@ -246,7 +261,7 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 	}()
 
 	reader := csv.NewReader(file)
-	
+
 	// Read header
 	headerStart := time.Now()
 	headers, err := reader.Read()
@@ -256,12 +271,79 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 	}
 	c.log.Info("CSV headers read", "headerCount", len(headers), "readTime", time.Since(headerStart))
 
-	var currentBatch []*TestData
+	// Create a slice of setter functions based on header order to avoid switch statements in the loop
+	setters := make([]func(td *TestData, val string), len(headers))
+	for i, header := range headers {
+		switch header {
+		case "first_name":
+			setters[i] = func(td *TestData, val string) { td.FirstName = &val }
+		case "last_name":
+			setters[i] = func(td *TestData, val string) { td.LastName = &val }
+		case "email":
+			setters[i] = func(td *TestData, val string) { td.Email = &val }
+		case "phone":
+			setters[i] = func(td *TestData, val string) { td.Phone = &val }
+		case "address_line_1":
+			setters[i] = func(td *TestData, val string) { td.AddressLine1 = &val }
+		case "address_line_2":
+			setters[i] = func(td *TestData, val string) { td.AddressLine2 = &val }
+		case "city":
+			setters[i] = func(td *TestData, val string) { td.City = &val }
+		case "state":
+			setters[i] = func(td *TestData, val string) { td.State = &val }
+		case "zip_code":
+			setters[i] = func(td *TestData, val string) { td.ZipCode = &val }
+		case "country":
+			setters[i] = func(td *TestData, val string) { td.Country = &val }
+		case "social_security_no":
+			setters[i] = func(td *TestData, val string) { td.SocialSecurityNo = &val }
+		case "employer":
+			setters[i] = func(td *TestData, val string) { td.Employer = &val }
+		case "job_title":
+			setters[i] = func(td *TestData, val string) { td.JobTitle = &val }
+		case "department":
+			setters[i] = func(td *TestData, val string) { td.Department = &val }
+		case "salary":
+			setters[i] = func(td *TestData, val string) { td.Salary = &val }
+		case "insurance_plan_id":
+			setters[i] = func(td *TestData, val string) { td.InsurancePlanID = &val }
+		case "insurance_carrier":
+			setters[i] = func(td *TestData, val string) { td.InsuranceCarrier = &val }
+		case "policy_number":
+			setters[i] = func(td *TestData, val string) { td.PolicyNumber = &val }
+		case "group_number":
+			setters[i] = func(td *TestData, val string) { td.GroupNumber = &val }
+		case "member_id":
+			setters[i] = func(td *TestData, val string) { td.MemberID = &val }
+		case "birth_date", "start_date", "end_date":
+			// Need to capture header for the closure
+			h := header
+			setters[i] = func(td *TestData, val string) {
+				validationResult := c.dateUtils.GetValidator().ValidateAndConvert(val)
+				if validationResult.IsValid {
+					dateStr := validationResult.ParsedTime.Format("2006-01-02")
+					switch h {
+					case "birth_date":
+						td.BirthDate = &dateStr
+					case "start_date":
+						td.StartDate = &dateStr
+					case "end_date":
+						td.EndDate = &dateStr
+					}
+				}
+			}
+		default:
+			// Create a no-op setter for columns we don't care about
+			setters[i] = func(td *TestData, val string) {}
+		}
+	}
+
+	var currentBatch = make([]*TestData, 0, config.BatchSize)
 	batchNum := 0
 	rowsRead := 0
 	skippedRows := 0
 	parseStart := time.Now()
-	
+
 	for {
 		row, err := reader.Read()
 		if err == io.EOF {
@@ -274,12 +356,22 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 
 		rowsRead++
 
-		// Convert CSV row to TestData
-		testData, err := c.csvRowToTestData(row, headers, loadTestID)
-		if err != nil {
-			// Skip invalid rows but continue processing
-			skippedRows++
-			continue
+		// Get a TestData object from the pool and reset it
+		testData := testDataPool.Get().(*TestData)
+		*testData = TestData{}
+
+		// Initialize base fields
+		nowStr := time.Now().Format(time.RFC3339)
+		testData.ID = uuid.New()
+		testData.CreatedAt = &nowStr
+		testData.UpdatedAt = &nowStr
+		testData.LoadTestID = loadTestID
+
+		// Use the setters to populate the struct
+		for i, value := range row {
+			if value != "" {
+				setters[i](testData, value)
+			}
 		}
 
 		currentBatch = append(currentBatch, testData)
@@ -290,14 +382,10 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 				Records:  currentBatch,
 				BatchNum: batchNum,
 			}
-			
-			sendStart := time.Now()
+
 			select {
 			case batchChan <- batchData:
-				sendTime := time.Since(sendStart)
-				if sendTime > 10*time.Millisecond {
-					c.log.Info("Slow batch send", "batchNum", batchNum, "sendTime", sendTime)
-				}
+				// Prep for the next batch
 				currentBatch = make([]*TestData, 0, config.BatchSize)
 				batchNum++
 			case <-time.After(30 * time.Second):
@@ -309,7 +397,10 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 		// Log progress every 1000 rows
 		if rowsRead%1000 == 0 {
 			elapsed := time.Since(parseStart)
-			rowsPerSec := float64(rowsRead) / elapsed.Seconds()
+			var rowsPerSec float64
+			if elapsed.Seconds() > 0 {
+				rowsPerSec = float64(rowsRead) / elapsed.Seconds()
+			}
 			c.log.Info("Parsing progress", "rowsRead", rowsRead, "batchesSent", batchNum, "rowsPerSec", int(rowsPerSec), "skippedRows", skippedRows)
 		}
 	}
@@ -325,12 +416,16 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 	}
 
 	parseTime := time.Since(parseStart)
-	c.log.Info("CSV parsing completed", 
+	var finalRowsPerSec float64
+	if parseTime.Seconds() > 0 {
+		finalRowsPerSec = float64(rowsRead) / parseTime.Seconds()
+	}
+	c.log.Info("CSV parsing completed",
 		"totalRows", rowsRead,
 		"skippedRows", skippedRows,
 		"batchesSent", batchNum,
 		"parseTime", parseTime,
-		"rowsPerSec", float64(rowsRead)/parseTime.Seconds())
+		"rowsPerSec", finalRowsPerSec)
 
 	done <- nil
 }
@@ -353,10 +448,19 @@ func (c *OptimizedLoadTestController) insertWorker(
 
 	for batch := range batchChan {
 		batchStart := time.Now()
-		
+
 		if err := c.insertBatchWithGORM(ctx, batch.Records, config); err != nil {
 			errorChan <- fmt.Errorf("worker %d failed to insert batch %d: %w", workerID, batch.BatchNum, err)
+			// Return failed objects to the pool
+			for _, record := range batch.Records {
+				testDataPool.Put(record)
+			}
 			return
+		}
+
+		// Return successfully processed objects to the pool
+		for _, record := range batch.Records {
+			testDataPool.Put(record)
 		}
 
 		batchTime := time.Since(batchStart)
@@ -371,7 +475,7 @@ func (c *OptimizedLoadTestController) insertWorker(
 
 		// Log slow batches
 		if batchTime > 100*time.Millisecond {
-			c.log.Info("Slow batch detected", 
+			c.log.Info("Slow batch detected",
 				"workerID", workerID,
 				"batchNum", batch.BatchNum,
 				"batchSize", len(batch.Records),
@@ -385,7 +489,7 @@ func (c *OptimizedLoadTestController) insertWorker(
 		avgBatchTime = totalProcessTime / time.Duration(batchesProcessed)
 	}
 
-	c.log.Info("Worker completed", 
+	c.log.Info("Worker completed",
 		"workerID", workerID,
 		"batchesProcessed", batchesProcessed,
 		"totalTime", workerTotal,
@@ -415,7 +519,7 @@ func (c *OptimizedLoadTestController) insertBatchWithGORM(
 
 	// Log slow operations
 	if execTime > 50*time.Millisecond {
-		c.log.Info("Slow GORM batch operation", 
+		c.log.Info("Slow GORM batch operation",
 			"recordCount", len(records),
 			"execTime", execTime,
 			"batchSize", config.BatchSize)
@@ -426,90 +530,6 @@ func (c *OptimizedLoadTestController) insertBatchWithGORM(
 	}
 
 	return nil
-}
-
-
-// csvRowToTestData converts a CSV row to TestData struct
-func (c *OptimizedLoadTestController) csvRowToTestData(row, headers []string, loadTestID uuid.UUID) (*TestData, error) {
-	if len(row) != len(headers) {
-		return nil, fmt.Errorf("row length %d doesn't match headers length %d", len(row), len(headers))
-	}
-
-	testData := &TestData{
-		BaseUUIDModel: BaseUUIDModel{
-			ID:        uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		LoadTestID: loadTestID,
-	}
-
-	// Map CSV columns to struct fields
-	for i, header := range headers {
-		value := row[i]
-		if value == "" {
-			continue // Skip empty values
-		}
-
-		switch header {
-		case "first_name":
-			testData.FirstName = &value
-		case "last_name":
-			testData.LastName = &value
-		case "email":
-			testData.Email = &value
-		case "phone":
-			testData.Phone = &value
-		case "address_line_1":
-			testData.AddressLine1 = &value
-		case "address_line_2":
-			testData.AddressLine2 = &value
-		case "city":
-			testData.City = &value
-		case "state":
-			testData.State = &value
-		case "zip_code":
-			testData.ZipCode = &value
-		case "country":
-			testData.Country = &value
-		case "social_security_no":
-			testData.SocialSecurityNo = &value
-		case "employer":
-			testData.Employer = &value
-		case "job_title":
-			testData.JobTitle = &value
-		case "department":
-			testData.Department = &value
-		case "salary":
-			testData.Salary = &value
-		case "insurance_plan_id":
-			testData.InsurancePlanID = &value
-		case "insurance_carrier":
-			testData.InsuranceCarrier = &value
-		case "policy_number":
-			testData.PolicyNumber = &value
-		case "group_number":
-			testData.GroupNumber = &value
-		case "member_id":
-			testData.MemberID = &value
-		case "birth_date", "start_date", "end_date":
-			// Validate and parse date fields
-			validationResult := c.dateUtils.GetValidator().ValidateAndConvert(value)
-			if validationResult.IsValid {
-				dateStr := validationResult.ParsedTime.Format("2006-01-02")
-				switch header {
-				case "birth_date":
-					testData.BirthDate = &dateStr
-				case "start_date":
-					testData.StartDate = &dateStr
-				case "end_date":
-					testData.EndDate = &dateStr
-				}
-			}
-		}
-	}
-
-	return testData, nil
 }
 
 // monitorOptimizedProgress sends real-time progress updates

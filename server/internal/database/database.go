@@ -67,7 +67,7 @@ func (s *DB) initializeDB(config config.Config) error {
 	gormLogger := logger.New(
 		slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo),
 		logger.Config{
-			SlowThreshold:             1 * time.Second,
+			SlowThreshold:             2 * time.Second,
 			LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: true,
 			ParameterizedQueries:      false,
