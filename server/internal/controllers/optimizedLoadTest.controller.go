@@ -80,8 +80,8 @@ func DefaultWorkerConfig() *WorkerConfig {
 	return &WorkerConfig{
 		NumWorkers:    numWorkers,
 		BatchSize:     2000,
-		BufferSize:    numWorkers * 2, // A larger buffer can help keep workers fed
-		BatchesPerTxn: 1,
+		BufferSize:    numWorkers * 4, // A larger buffer can help keep workers fed
+		BatchesPerTxn: 4,
 	}
 }
 
@@ -146,7 +146,13 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 		workerWG.Add(1)
 		go c.insertWorker(ctx, i, batchChan, errorChan, progress, config, &workerWG)
 	}
-	c.log.Info("Started workers", "count", config.NumWorkers, "startupTime", time.Since(workerStartTime))
+	c.log.Info(
+		"Started workers",
+		"count",
+		config.NumWorkers,
+		"startupTime",
+		time.Since(workerStartTime),
+	)
 
 	// Start CSV parser (producer)
 	parserDone := make(chan error, 1)
@@ -161,11 +167,17 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	}
 	parseTime := time.Since(parseStartTime)
 	if parseTime.Seconds() > 0 {
-		c.log.Info("CSV parsing completed", "duration", parseTime, "recordsPerSecond", float64(totalRecords)/parseTime.Seconds())
+		c.log.Info(
+			"CSV parsing completed",
+			"duration",
+			parseTime,
+			"recordsPerSecond",
+			float64(totalRecords)/parseTime.Seconds(),
+		)
 	} else {
 		c.log.Info("CSV parsing completed", "duration", parseTime)
 	}
-	
+
 	// Close batch channel to signal workers to finish
 	close(batchChan)
 
@@ -225,14 +237,17 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 
 	// Send final progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
-		"phase":            "insertion",
-		"overallProgress":  100,
-		"phaseProgress":    100,
-		"currentPhase":     "Database Insertion Complete",
-		"rowsProcessed":    progress.RecordsProcessed,
-		"rowsPerSecond":    rowsPerSecond,
-		"eta":              "Done",
-		"message":          fmt.Sprintf("Successfully inserted %d records using optimized streaming method", progress.RecordsProcessed),
+		"phase":           "insertion",
+		"overallProgress": 100,
+		"phaseProgress":   100,
+		"currentPhase":    "Database Insertion Complete",
+		"rowsProcessed":   progress.RecordsProcessed,
+		"rowsPerSecond":   rowsPerSecond,
+		"eta":             "Done",
+		"message": fmt.Sprintf(
+			"Successfully inserted %d records using optimized streaming method",
+			progress.RecordsProcessed,
+		),
 	})
 
 	c.log.Info("optimized insertion completed",
@@ -338,7 +353,7 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 		}
 	}
 
-	var currentBatch = make([]*TestData, 0, config.BatchSize)
+	currentBatch := make([]*TestData, 0, config.BatchSize)
 	batchNum := 0
 	rowsRead := 0
 	skippedRows := 0
@@ -401,7 +416,17 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 			if elapsed.Seconds() > 0 {
 				rowsPerSec = float64(rowsRead) / elapsed.Seconds()
 			}
-			c.log.Info("Parsing progress", "rowsRead", rowsRead, "batchesSent", batchNum, "rowsPerSec", int(rowsPerSec), "skippedRows", skippedRows)
+			c.log.Info(
+				"Parsing progress",
+				"rowsRead",
+				rowsRead,
+				"batchesSent",
+				batchNum,
+				"rowsPerSec",
+				int(rowsPerSec),
+				"skippedRows",
+				skippedRows,
+			)
 		}
 	}
 
@@ -547,11 +572,11 @@ func (c *OptimizedLoadTestController) monitorOptimizedProgress(
 			return
 		case <-ticker.C:
 			progress.mu.RLock()
-			
+
 			elapsed := time.Since(progress.StartTime)
 			overallProgress := float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
 			phaseProgress := overallProgress * 100
-			
+
 			// Calculate ETA
 			var eta string
 			if progress.RecordsProcessed > 0 && overallProgress > 0 {
@@ -575,14 +600,19 @@ func (c *OptimizedLoadTestController) monitorOptimizedProgress(
 			progress.mu.RUnlock()
 
 			c.wsManager.SendLoadTestProgress(testID, map[string]any{
-				"phase":            "insertion",
-				"overallProgress":  85 + (15 * overallProgress), // Scale to 85-100%
-				"phaseProgress":    phaseProgress,
-				"currentPhase":     "Optimized Streaming Insertion",
-				"rowsProcessed":    progress.RecordsProcessed,
-				"rowsPerSecond":    rowsPerSecond,
-				"eta":              eta,
-				"message":          fmt.Sprintf("Streaming processing: %d/%d records (%d batches)", progress.RecordsProcessed, progress.TotalRecords, progress.BatchesProcessed),
+				"phase":           "insertion",
+				"overallProgress": 85 + (15 * overallProgress), // Scale to 85-100%
+				"phaseProgress":   phaseProgress,
+				"currentPhase":    "Optimized Streaming Insertion",
+				"rowsProcessed":   progress.RecordsProcessed,
+				"rowsPerSecond":   rowsPerSecond,
+				"eta":             eta,
+				"message": fmt.Sprintf(
+					"Streaming processing: %d/%d records (%d batches)",
+					progress.RecordsProcessed,
+					progress.TotalRecords,
+					progress.BatchesProcessed,
+				),
 			})
 		}
 	}
@@ -591,7 +621,7 @@ func (c *OptimizedLoadTestController) monitorOptimizedProgress(
 // dropIndexesTemporarily drops indexes for better insert performance
 func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context) error {
 	db := c.db.SQLWithContext(ctx)
-	
+
 	// Drop indexes that might slow down bulk inserts
 	// Note: Be careful with this in production - ensure indexes are recreated
 	queries := []string{
@@ -613,12 +643,12 @@ func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context
 // recreateIndexes recreates the indexes after bulk insert
 func (c *OptimizedLoadTestController) recreateIndexes(ctx context.Context) error {
 	db := c.db.SQLWithContext(ctx)
-	
+
 	// Recreate important indexes
 	queries := []string{
 		"CREATE INDEX IF NOT EXISTS idx_test_data_load_test_id ON test_data(load_test_id)",
-		"CREATE INDEX IF NOT EXISTS idx_test_data_email ON test_data(email)",
-		"CREATE INDEX IF NOT EXISTS idx_test_data_phone ON test_data(phone)",
+		// "CREATE INDEX IF NOT EXISTS idx_test_data_email ON test_data(email)",
+		// "CREATE INDEX IF NOT EXISTS idx_test_data_phone ON test_data(phone)",
 	}
 
 	for _, query := range queries {
