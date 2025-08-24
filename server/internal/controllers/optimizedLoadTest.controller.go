@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	. "server/internal/models"
 	"server/internal/repositories"
 	"server/internal/utils"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,12 +36,21 @@ type OptimizedLoadTestController struct {
 	wsManager    WSManager
 }
 
+// InsertMethod defines the insertion approach
+type InsertMethod string
+
+const (
+	InsertMethodGORM   InsertMethod = "gorm"
+	InsertMethodRawSQL InsertMethod = "raw_sql"
+)
+
 // WorkerConfig holds configuration for the optimized insertion
 type WorkerConfig struct {
 	NumWorkers    int
 	BatchSize     int
 	BufferSize    int
-	BatchesPerTxn int // Number of batches per transaction
+	BatchesPerTxn int          // Number of batches per transaction
+	InsertMethod  InsertMethod // Which insertion method to use
 }
 
 // BatchData represents a batch of records ready for insertion
@@ -82,10 +93,23 @@ func DefaultWorkerConfig() *WorkerConfig {
 		BatchSize:     2000,
 		BufferSize:    numWorkers * 4, // A larger buffer can help keep workers fed
 		BatchesPerTxn: 4,
+		InsertMethod:  InsertMethodGORM, // Default to GORM
 	}
 }
 
-// InsertOptimizedWithProgress performs streaming CSV parsing with concurrent batch processing
+// RawSQLWorkerConfig provides configuration optimized for raw SQL insertion
+func RawSQLWorkerConfig() *WorkerConfig {
+	numWorkers := runtime.NumCPU()
+	return &WorkerConfig{
+		NumWorkers:    numWorkers,
+		BatchSize:     2000,  // Can be larger with raw SQL
+		BufferSize:    numWorkers * 4,
+		BatchesPerTxn: 4,
+		InsertMethod:  InsertMethodRawSQL,
+	}
+}
+
+// InsertOptimizedWithProgress performs streaming CSV parsing with concurrent batch processing using GORM
 func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	ctx context.Context,
 	csvPath string,
@@ -95,12 +119,62 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	testID string,
 ) (int, error) {
 	config := DefaultWorkerConfig()
+	config.InsertMethod = InsertMethodGORM
+	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
+}
+
+// InsertOptimizedWithRawSQL performs streaming CSV parsing with concurrent batch processing using raw SQL
+func (c *OptimizedLoadTestController) InsertOptimizedWithRawSQL(
+	ctx context.Context,
+	csvPath string,
+	loadTestID uuid.UUID,
+	totalRecords int,
+	startTime time.Time,
+	testID string,
+) (int, error) {
+	config := RawSQLWorkerConfig()
+	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
+}
+
+// InsertLudicrousSpeed performs streaming CSV parsing with concurrent batch processing using raw SQL with optimized settings
+func (c *OptimizedLoadTestController) InsertLudicrousSpeed(
+	ctx context.Context,
+	csvPath string,
+	loadTestID uuid.UUID,
+	totalRecords int,
+	startTime time.Time,
+	testID string,
+) (int, error) {
+	// PostgreSQL extended protocol is limited to 65,535 parameters
+	// With 28 columns per record: 65535 ÷ 28 = ~2340 max records per batch
+	// Use 2000 for safety margin and optimal performance
+	config := &WorkerConfig{
+		NumWorkers:    runtime.NumCPU(),
+		BatchSize:     2000,  // Optimized for PostgreSQL parameter limits
+		BufferSize:    runtime.NumCPU() * 4,
+		BatchesPerTxn: 4,
+		InsertMethod:  InsertMethodRawSQL,
+	}
+	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
+}
+
+// insertWithConfig performs the actual insertion logic with given configuration
+func (c *OptimizedLoadTestController) insertWithConfig(
+	ctx context.Context,
+	csvPath string,
+	loadTestID uuid.UUID,
+	totalRecords int,
+	startTime time.Time,
+	testID string,
+	config *WorkerConfig,
+) (int, error) {
 
 	c.log.Info("Starting optimized insertion",
 		"totalRecords", totalRecords,
 		"workers", config.NumWorkers,
 		"batchSize", config.BatchSize,
-		"bufferSize", config.BufferSize)
+		"bufferSize", config.BufferSize,
+		"insertMethod", config.InsertMethod)
 
 	// Open CSV file
 	file, err := os.Open(csvPath)
@@ -159,11 +233,21 @@ func (c *OptimizedLoadTestController) InsertOptimizedWithProgress(
 	parseStartTime := time.Now()
 	go c.parseCSVStreaming(file, loadTestID, batchChan, parserDone, config)
 
-	// Wait for parser to finish
-	if err := <-parserDone; err != nil {
-		close(batchChan)
-		progressDone <- true
-		return 0, fmt.Errorf("CSV parsing failed: %w", err)
+	// Wait for either parser to finish or worker error
+	var parseErr error
+	select {
+	case parseErr = <-parserDone:
+		if parseErr != nil {
+			close(batchChan)
+			progressDone <- true
+			return 0, fmt.Errorf("CSV parsing failed: %w", parseErr)
+		}
+	case workerErr := <-errorChan:
+		if workerErr != nil {
+			close(batchChan)
+			progressDone <- true
+			return 0, fmt.Errorf("worker failed during parsing: %w", workerErr)
+		}
 	}
 	parseTime := time.Since(parseStartTime)
 	if parseTime.Seconds() > 0 {
@@ -409,24 +493,14 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 			}
 		}
 
-		// Log progress every 1000 rows
-		if rowsRead%1000 == 0 {
+		// Minimal logging - only every 10k rows for large datasets
+		if rowsRead%10000 == 0 && rowsRead > 0 {
 			elapsed := time.Since(parseStart)
 			var rowsPerSec float64
 			if elapsed.Seconds() > 0 {
 				rowsPerSec = float64(rowsRead) / elapsed.Seconds()
 			}
-			c.log.Info(
-				"Parsing progress",
-				"rowsRead",
-				rowsRead,
-				"batchesSent",
-				batchNum,
-				"rowsPerSec",
-				int(rowsPerSec),
-				"skippedRows",
-				skippedRows,
-			)
+			c.log.Info("Parse progress", "rows", rowsRead, "rps", int(rowsPerSec))
 		}
 	}
 
@@ -467,15 +541,20 @@ func (c *OptimizedLoadTestController) insertWorker(
 ) {
 	defer wg.Done()
 
-	workerStart := time.Now()
-	batchesProcessed := 0
-	totalProcessTime := time.Duration(0)
-
 	for batch := range batchChan {
-		batchStart := time.Now()
+		var err error
+		switch config.InsertMethod {
+		case InsertMethodRawSQL:
+			err = c.insertBatchWithRawSQL(ctx, batch.Records, config)
+		case InsertMethodGORM:
+			fallthrough
+		default:
+			err = c.insertBatchWithGORM(ctx, batch.Records, config)
+		}
 
-		if err := c.insertBatchWithGORM(ctx, batch.Records, config); err != nil {
-			errorChan <- fmt.Errorf("worker %d failed to insert batch %d: %w", workerID, batch.BatchNum, err)
+		if err != nil {
+			errorChan <- fmt.Errorf("worker %d failed to insert batch %d using %s: %w", 
+				workerID, batch.BatchNum, config.InsertMethod, err)
 			// Return failed objects to the pool
 			for _, record := range batch.Records {
 				testDataPool.Put(record)
@@ -488,39 +567,12 @@ func (c *OptimizedLoadTestController) insertWorker(
 			testDataPool.Put(record)
 		}
 
-		batchTime := time.Since(batchStart)
-		totalProcessTime += batchTime
-		batchesProcessed++
-
 		// Update progress
 		progress.mu.Lock()
 		progress.RecordsProcessed += len(batch.Records)
 		progress.BatchesProcessed++
 		progress.mu.Unlock()
-
-		// Log slow batches
-		if batchTime > 100*time.Millisecond {
-			c.log.Info("Slow batch detected",
-				"workerID", workerID,
-				"batchNum", batch.BatchNum,
-				"batchSize", len(batch.Records),
-				"batchTime", batchTime)
-		}
 	}
-
-	workerTotal := time.Since(workerStart)
-	var avgBatchTime time.Duration
-	if batchesProcessed > 0 {
-		avgBatchTime = totalProcessTime / time.Duration(batchesProcessed)
-	}
-
-	c.log.Info("Worker completed",
-		"workerID", workerID,
-		"batchesProcessed", batchesProcessed,
-		"totalTime", workerTotal,
-		"totalProcessTime", totalProcessTime,
-		"avgBatchTime", avgBatchTime,
-		"idleTime", workerTotal-totalProcessTime)
 
 	errorChan <- nil // Signal successful completion
 }
@@ -537,21 +589,225 @@ func (c *OptimizedLoadTestController) insertBatchWithGORM(
 
 	db := c.db.SQLWithContext(ctx)
 
-	// Use GORM's native batch insert - much faster than raw SQL + transaction
-	execStart := time.Now()
+	// Use GORM's native batch insert
 	err := db.CreateInBatches(records, config.BatchSize).Error
+	if err != nil {
+		return fmt.Errorf("GORM batch insert failed: %w", err)
+	}
+
+	return nil
+}
+
+// insertBatchWithRawSQL uses raw SQL prepared statements for maximum performance
+func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
+	ctx context.Context,
+	records []*TestData,
+	config *WorkerConfig,
+) error {
+	if len(records) == 0 {
+		return nil
+	}
+
+	// Get the underlying *sql.DB connection
+	gormDB := c.db.SQLWithContext(ctx)
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying SQL DB: %w", err)
+	}
+
+	execStart := time.Now()
+
+	// Build a single INSERT statement with multiple VALUE clauses
+	const baseSQL = `INSERT INTO test_data (
+		id, created_at, updated_at, deleted_at, load_test_id, birth_date, start_date, end_date,
+		first_name, last_name, email, phone, address_line1, address_line2,
+		city, state, zip_code, country, social_security_no, employer, job_title,
+		department, salary, insurance_plan_id, insurance_carrier, policy_number,
+		group_number, member_id
+	) VALUES `
+
+	// Build VALUES clauses and args slice
+	var valueClauses []string
+	args := make([]interface{}, 0, len(records)*28) // 28 columns per record (including deleted_at)
+
+	for i, record := range records {
+		// Build PostgreSQL-style placeholders ($1, $2, $3...)
+		placeholders := make([]string, 28)
+		for j := 0; j < 28; j++ {
+			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
+		}
+		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
+		
+		// Add all values in the same order as the columns
+		// Helper function to safely dereference string pointers
+		getStringValue := func(ptr *string) interface{} {
+			if ptr == nil {
+				return nil
+			}
+			return *ptr
+		}
+		
+		args = append(args,
+			record.ID,
+			getStringValue(record.CreatedAt),
+			getStringValue(record.UpdatedAt),
+			nil, // deleted_at is always NULL for new records
+			record.LoadTestID,
+			getStringValue(record.BirthDate),
+			getStringValue(record.StartDate),
+			getStringValue(record.EndDate),
+			getStringValue(record.FirstName),
+			getStringValue(record.LastName),
+			getStringValue(record.Email),
+			getStringValue(record.Phone),
+			getStringValue(record.AddressLine1),
+			getStringValue(record.AddressLine2),
+			getStringValue(record.City),
+			getStringValue(record.State),
+			getStringValue(record.ZipCode),
+			getStringValue(record.Country),
+			getStringValue(record.SocialSecurityNo),
+			getStringValue(record.Employer),
+			getStringValue(record.JobTitle),
+			getStringValue(record.Department),
+			getStringValue(record.Salary),
+			getStringValue(record.InsurancePlanID),
+			getStringValue(record.InsuranceCarrier),
+			getStringValue(record.PolicyNumber),
+			getStringValue(record.GroupNumber),
+			getStringValue(record.MemberID),
+		)
+	}
+
+	// Combine base SQL with VALUES clauses
+	finalSQL := baseSQL + strings.Join(valueClauses, ", ")
+
+	// Debug: Log the SQL statement structure for troubleshooting
+	c.log.Debug("Raw SQL debug info",
+		"recordCount", len(records),
+		"argCount", len(args),
+		"argsPerRecord", len(args)/len(records),
+		"valueClauses", len(valueClauses),
+		"firstValueClause", valueClauses[0],
+		"sqlLength", len(finalSQL))
+
+	// Execute the prepared statement
+	_, err = sqlDB.ExecContext(ctx, finalSQL, args...)
 	execTime := time.Since(execStart)
 
 	// Log slow operations
 	if execTime > 50*time.Millisecond {
-		c.log.Info("Slow GORM batch operation",
+		c.log.Info("Slow raw SQL batch operation",
 			"recordCount", len(records),
 			"execTime", execTime,
 			"batchSize", config.BatchSize)
 	}
 
 	if err != nil {
-		return fmt.Errorf("GORM batch insert failed: %w", err)
+		// Log first few args for debugging
+		debugArgs := args
+		if len(debugArgs) > 10 {
+			debugArgs = args[:10]
+		}
+		return fmt.Errorf("raw SQL batch insert failed (records: %d, args: %d): %w. First few args: %v", 
+			len(records), len(args), err, debugArgs)
+	}
+
+	return nil
+}
+
+// insertBatchWithRawSQLAndMultipleConnections uses raw SQL with multiple database connections for maximum parallelism
+func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnections(
+	ctx context.Context,
+	records []*TestData,
+	config *WorkerConfig,
+	connectionPool *sql.DB, // Pass in a dedicated connection for this worker
+) error {
+	if len(records) == 0 {
+		return nil
+	}
+
+	execStart := time.Now()
+
+	// Build a single INSERT statement with multiple VALUE clauses
+	const baseSQL = `INSERT INTO test_data (
+		id, created_at, updated_at, deleted_at, load_test_id, birth_date, start_date, end_date,
+		first_name, last_name, email, phone, address_line1, address_line2,
+		city, state, zip_code, country, social_security_no, employer, job_title,
+		department, salary, insurance_plan_id, insurance_carrier, policy_number,
+		group_number, member_id
+	) VALUES `
+
+	// Build VALUES clauses and args slice
+	var valueClauses []string
+	args := make([]interface{}, 0, len(records)*28) // 28 columns per record (including deleted_at)
+
+	for i, record := range records {
+		// Build PostgreSQL-style placeholders ($1, $2, $3...)
+		placeholders := make([]string, 28)
+		for j := 0; j < 28; j++ {
+			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
+		}
+		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
+		
+		// Add all values in the same order as the columns
+		// Helper function to safely dereference string pointers
+		getStringValue := func(ptr *string) interface{} {
+			if ptr == nil {
+				return nil
+			}
+			return *ptr
+		}
+		
+		args = append(args,
+			record.ID,
+			getStringValue(record.CreatedAt),
+			getStringValue(record.UpdatedAt),
+			nil, // deleted_at is always NULL for new records
+			record.LoadTestID,
+			getStringValue(record.BirthDate),
+			getStringValue(record.StartDate),
+			getStringValue(record.EndDate),
+			getStringValue(record.FirstName),
+			getStringValue(record.LastName),
+			getStringValue(record.Email),
+			getStringValue(record.Phone),
+			getStringValue(record.AddressLine1),
+			getStringValue(record.AddressLine2),
+			getStringValue(record.City),
+			getStringValue(record.State),
+			getStringValue(record.ZipCode),
+			getStringValue(record.Country),
+			getStringValue(record.SocialSecurityNo),
+			getStringValue(record.Employer),
+			getStringValue(record.JobTitle),
+			getStringValue(record.Department),
+			getStringValue(record.Salary),
+			getStringValue(record.InsurancePlanID),
+			getStringValue(record.InsuranceCarrier),
+			getStringValue(record.PolicyNumber),
+			getStringValue(record.GroupNumber),
+			getStringValue(record.MemberID),
+		)
+	}
+
+	// Combine base SQL with VALUES clauses
+	finalSQL := baseSQL + strings.Join(valueClauses, ", ")
+
+	// Execute using the dedicated connection
+	_, err := connectionPool.ExecContext(ctx, finalSQL, args...)
+	execTime := time.Since(execStart)
+
+	// Log slow operations
+	if execTime > 50*time.Millisecond {
+		c.log.Info("Slow raw SQL batch operation (multi-connection)",
+			"recordCount", len(records),
+			"execTime", execTime,
+			"batchSize", config.BatchSize)
+	}
+
+	if err != nil {
+		return fmt.Errorf("raw SQL multi-connection batch insert failed: %w", err)
 	}
 
 	return nil

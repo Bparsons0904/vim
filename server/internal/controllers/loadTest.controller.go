@@ -18,12 +18,12 @@ import (
 )
 
 type LoadTestController struct {
-	loadTestRepo     repositories.LoadTestRepository
-	testDataRepo     repositories.TestDataRepository
+	loadTestRepo        repositories.LoadTestRepository
+	testDataRepo        repositories.TestDataRepository
 	optimizedController *OptimizedLoadTestController
-	dateUtils        *utils.DateUtils
-	log              logger.Logger
-	wsManager        WSManager
+	dateUtils           *utils.DateUtils
+	log                 logger.Logger
+	wsManager           WSManager
 }
 
 // WSManager interface for WebSocket operations to avoid import cycles
@@ -154,7 +154,7 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		return
 	}
 
-	// Handle optimized method differently - bypass parsing and use streaming pipeline
+	// Handle optimized and ludicrous methods differently - bypass parsing and use streaming pipeline
 	if loadTest.Method == "optimized" {
 		// Go directly to optimized streaming insertion
 		c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -206,6 +206,63 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		})
 		
 		log.Info("optimized load test completed successfully", 
+			"loadTestId", loadTest.ID,
+			"totalTime", totalTime,
+			"method", loadTest.Method)
+		return
+	}
+	
+	if loadTest.Method == "ludicrous" {
+		// Go directly to ludicrous streaming insertion
+		c.wsManager.SendLoadTestProgress(testID, map[string]any{
+			"phase":            "insertion",
+			"overallProgress":  25,
+			"phaseProgress":    0,
+			"currentPhase":     "Ludicrous Speed Insertion",
+			"rowsProcessed":    0,
+			"rowsPerSecond":    0,
+			"eta":              "Calculating...",
+			"message":          "Starting ludicrous speed insertion (parsing + inserting concurrently)...",
+		})
+		
+		insertTime, err := c.optimizedController.InsertLudicrousSpeed(
+			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
+		)
+		if err != nil {
+			c.updateLoadTestError(ctx, loadTest, "Ludicrous insertion failed", err)
+			c.wsManager.SendLoadTestError(testID, "Ludicrous insertion failed: "+err.Error())
+			return
+		}
+		
+		// Update load test with completion data (no separate parse time for ludicrous method)
+		totalTime := csvGenTime + insertTime
+		parseTime := 0 // No separate parse step for ludicrous method
+		
+		loadTest.CSVGenTime = &csvGenTime
+		loadTest.ParseTime = &parseTime
+		loadTest.InsertTime = &insertTime
+		loadTest.TotalTime = &totalTime
+		loadTest.Status = "completed"
+		
+		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
+			_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
+		}
+		
+		// Send completion notification
+		c.wsManager.SendLoadTestComplete(testID, map[string]any{
+			"id":           loadTest.ID.String(),
+			"rows":         loadTest.Rows,
+			"columns":      loadTest.Columns,
+			"dateColumns":  loadTest.DateColumns,
+			"method":       loadTest.Method,
+			"status":       "completed",
+			"csvGenTime":   csvGenTime,
+			"parseTime":    parseTime,
+			"insertTime":   insertTime,
+			"totalTime":    totalTime,
+		})
+		
+		log.Info("ludicrous load test completed successfully", 
 			"loadTestId", loadTest.ID,
 			"totalTime", totalTime,
 			"method", loadTest.Method)

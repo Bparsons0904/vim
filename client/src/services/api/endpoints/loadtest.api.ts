@@ -3,7 +3,7 @@ import { LoadTestConfig, LoadTestResult } from "@pages/LoadTest/LoadTest";
 
 export interface StartLoadTestRequest {
   rows: number;
-  method: 'brute_force' | 'batched' | 'optimized';
+  method: 'brute_force' | 'batched' | 'optimized' | 'ludicrous';
 }
 
 export interface StartLoadTestResponse {
@@ -43,7 +43,7 @@ export const getLoadTestHistory = async (params?: {
   page?: number;
   limit?: number;
   status?: 'running' | 'completed' | 'failed';
-  method?: 'brute_force' | 'batched' | 'optimized';
+  method?: 'brute_force' | 'batched' | 'optimized' | 'ludicrous';
 }): Promise<GetLoadTestHistoryResponse> => {
   return getApi<GetLoadTestHistoryResponse>('load-tests', params);
 };

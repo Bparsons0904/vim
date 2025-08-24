@@ -7,7 +7,7 @@ import { useStartLoadTest, useLoadTestHistory } from "@services/api/hooks/loadte
 
 export interface LoadTestConfig {
   rows: number;
-  method: 'brute_force' | 'batched' | 'optimized';
+  method: 'brute_force' | 'batched' | 'optimized' | 'ludicrous';
 }
 
 export interface LoadTestResult {
