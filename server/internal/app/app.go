@@ -65,7 +65,7 @@ func New() (*App, error) {
 	// Initialize controllers with repositories and services
 	middleware := middleware.New(db, eventBus, config, userRepo)
 	userController := userController.New(eventBus, userRepo, config)
-	loadTestController := loadTestController.NewLoadTestController(loadTestRepo, testDataRepo, websocket)
+	loadTestController := loadTestController.NewLoadTestController(loadTestRepo, testDataRepo, db, websocket)
 
 	app := &App{
 		Database:           db,

@@ -23,7 +23,7 @@ const ROW_PRESETS = [
 
 export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const [rows, setRows] = createSignal(10000);
-  const [method, setMethod] = createSignal<'brute_force' | 'batched'>('batched');
+  const [method, setMethod] = createSignal<'brute_force' | 'batched' | 'optimized'>('batched');
 
   const handlePresetClick = (value: number) => {
     setRows(value);
@@ -41,7 +41,20 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   };
 
   const getEstimatedTime = () => {
-    const rowsPerSecond = method() === 'batched' ? 50000 : 100;
+    let rowsPerSecond;
+    switch (method()) {
+      case 'optimized':
+        rowsPerSecond = 80000; // Estimated higher throughput for optimized method
+        break;
+      case 'batched':
+        rowsPerSecond = 50000;
+        break;
+      case 'brute_force':
+      default:
+        rowsPerSecond = 100;
+        break;
+    }
+    
     const estimatedSeconds = Math.ceil(rows() / rowsPerSecond);
     
     if (estimatedSeconds < 60) {
@@ -123,6 +136,21 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                 <p>Batch inserts with transactions - faster</p>
               </div>
             </label>
+            
+            <label class={styles.radioOption}>
+              <input
+                type="radio"
+                name="method"
+                value="optimized"
+                checked={method() === 'optimized'}
+                onChange={() => setMethod('optimized')}
+                disabled={props.disabled}
+              />
+              <div class={styles.radioContent}>
+                <strong>Optimized</strong>
+                <p>Streaming pipeline with concurrent workers - fastest</p>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -137,7 +165,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
             <div class={styles.summaryItem}>
               <span class={styles.summaryLabel}>Method:</span>
               <span class={styles.summaryValue}>
-                {method() === 'batched' ? 'Batched' : 'Brute Force'}
+                {method() === 'batched' ? 'Batched' : method() === 'optimized' ? 'Optimized' : 'Brute Force'}
               </span>
             </div>
             <div class={styles.summaryItem}>

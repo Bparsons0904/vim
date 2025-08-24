@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"server/internal/database"
 	"server/internal/logger"
 	"server/internal/repositories"
 	. "server/internal/models"
@@ -17,11 +18,12 @@ import (
 )
 
 type LoadTestController struct {
-	loadTestRepo repositories.LoadTestRepository
-	testDataRepo repositories.TestDataRepository
-	dateUtils    *utils.DateUtils
-	log          logger.Logger
-	wsManager    WSManager
+	loadTestRepo     repositories.LoadTestRepository
+	testDataRepo     repositories.TestDataRepository
+	optimizedController *OptimizedLoadTestController
+	dateUtils        *utils.DateUtils
+	log              logger.Logger
+	wsManager        WSManager
 }
 
 // WSManager interface for WebSocket operations to avoid import cycles
@@ -34,14 +36,18 @@ type WSManager interface {
 func NewLoadTestController(
 	loadTestRepo repositories.LoadTestRepository,
 	testDataRepo repositories.TestDataRepository,
+	db database.DB,
 	wsManager WSManager,
 ) *LoadTestController {
+	optimizedController := NewOptimizedLoadTestController(db, loadTestRepo, testDataRepo, wsManager)
+	
 	return &LoadTestController{
-		loadTestRepo: loadTestRepo,
-		testDataRepo: testDataRepo,
-		dateUtils:    utils.NewDateUtils(),
-		log:          logger.New("loadTestController"),
-		wsManager:    wsManager,
+		loadTestRepo:        loadTestRepo,
+		testDataRepo:        testDataRepo,
+		optimizedController: optimizedController,
+		dateUtils:           utils.NewDateUtils(),
+		log:                 logger.New("loadTestController"),
+		wsManager:           wsManager,
 	}
 }
 
@@ -148,6 +154,65 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		return
 	}
 
+	// Handle optimized method differently - bypass parsing and use streaming pipeline
+	if loadTest.Method == "optimized" {
+		// Go directly to optimized streaming insertion
+		c.wsManager.SendLoadTestProgress(testID, map[string]any{
+			"phase":            "insertion",
+			"overallProgress":  25,
+			"phaseProgress":    0,
+			"currentPhase":     "Optimized Streaming Insertion",
+			"rowsProcessed":    0,
+			"rowsPerSecond":    0,
+			"eta":              "Calculating...",
+			"message":          "Starting optimized streaming insertion (parsing + inserting concurrently)...",
+		})
+		
+		insertTime, err := c.optimizedController.InsertOptimizedWithProgress(
+			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
+		)
+		if err != nil {
+			c.updateLoadTestError(ctx, loadTest, "Optimized insertion failed", err)
+			c.wsManager.SendLoadTestError(testID, "Optimized insertion failed: "+err.Error())
+			return
+		}
+		
+		// Update load test with completion data (no separate parse time for optimized method)
+		totalTime := csvGenTime + insertTime
+		parseTime := 0 // No separate parse step for optimized method
+		
+		loadTest.CSVGenTime = &csvGenTime
+		loadTest.ParseTime = &parseTime
+		loadTest.InsertTime = &insertTime
+		loadTest.TotalTime = &totalTime
+		loadTest.Status = "completed"
+		
+		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
+			_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
+		}
+		
+		// Send completion notification
+		c.wsManager.SendLoadTestComplete(testID, map[string]any{
+			"id":           loadTest.ID.String(),
+			"rows":         loadTest.Rows,
+			"columns":      loadTest.Columns,
+			"dateColumns":  loadTest.DateColumns,
+			"method":       loadTest.Method,
+			"status":       "completed",
+			"csvGenTime":   csvGenTime,
+			"parseTime":    parseTime,
+			"insertTime":   insertTime,
+			"totalTime":    totalTime,
+		})
+		
+		log.Info("optimized load test completed successfully", 
+			"loadTestId", loadTest.ID,
+			"totalTime", totalTime,
+			"method", loadTest.Method)
+		return
+	}
+	
+	// Traditional flow for brute_force and batched methods
 	// Progress update: CSV generation complete
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
 		"phase":            "parsing",
@@ -860,7 +925,7 @@ func (c *LoadTestController) insertTestDataWithProgress(ctx context.Context, tes
 	switch method {
 	case "brute_force":
 		return c.insertBruteForceWithProgress(ctx, testData, startTime, testID)
-	case "batched", "optimized": // Support both names for backward compatibility
+	case "batched":
 		return c.insertBatchedWithProgress(ctx, testData, startTime, testID)
 	default:
 		return 0, fmt.Errorf("unknown insertion method: %s", method)

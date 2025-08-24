@@ -7,12 +7,14 @@ import { useStartLoadTest, useLoadTestHistory } from "@services/api/hooks/loadte
 
 export interface LoadTestConfig {
   rows: number;
-  method: 'brute_force' | 'batched';
+  method: 'brute_force' | 'batched' | 'optimized';
 }
 
 export interface LoadTestResult {
   id: string;
   rows: number;
+  columns: number;
+  dateColumns: number;
   method: string;
   status: 'running' | 'completed' | 'failed';
   csvGenTime?: number;
