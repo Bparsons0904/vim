@@ -1,0 +1,185 @@
+@use "../../../../styles/variables" as *;
+@use "../../../../styles/colors" as *;
+@use "../../../../styles/mixins" as *;
+
+.racingLights {
+  display: flex;
+  align-items: center;
+}
+
+.lightContainer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.lightGrid {
+  padding: $spacing-sm;
+  background: #000;
+  border-radius: $border-radius-md;
+}
+
+.lightRow {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-sm;
+  align-items: center;
+}
+
+.light {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: opacity 0.3s ease;
+    opacity: 0;
+  }
+
+  &.red {
+    background: #2a1515;
+    border-color: #4a2525;
+
+    &.active {
+      background: #ff4444;
+      border-color: #ff6666;
+      box-shadow: 
+        0 0 10px #ff4444,
+        0 0 20px #ff4444,
+        inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      animation: redPulse 0.5s ease-in-out;
+
+      &::before {
+        opacity: 1;
+      }
+    }
+  }
+
+  &.green {
+    background: #1a2a1a;
+    border-color: #2a4a2a;
+
+    &.active {
+      background: #44ff44;
+      border-color: #66ff66;
+      box-shadow: 
+        0 0 15px #44ff44,
+        0 0 30px #44ff44,
+        inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      animation: greenPulse 0.3s ease-in-out infinite alternate;
+
+      &::before {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.startMessage {
+  font-weight: $font-weight-bold;
+  font-size: $font-size-md;
+  color: #44ff44;
+  text-shadow: 0 0 10px #44ff44;
+  animation: startMessagePulse 0.5s ease-in-out infinite alternate;
+  width: 80px; // Fixed width to prevent layout shift
+  text-align: center;
+
+  span {
+    display: inline-block;
+    animation: bounce 0.6s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes redPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 
+      0 0 10px #ff4444,
+      0 0 20px #ff4444,
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 
+      0 0 15px #ff4444,
+      0 0 30px #ff4444,
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 
+      0 0 10px #ff4444,
+      0 0 20px #ff4444,
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes greenPulse {
+  0% {
+    box-shadow: 
+      0 0 15px #44ff44,
+      0 0 30px #44ff44,
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    box-shadow: 
+      0 0 20px #44ff44,
+      0 0 40px #44ff44,
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes startMessagePulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes bounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-3px);
+  }
+}
+
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .racingLights {
+    padding: $spacing-sm;
+    scale: 0.8;
+  }
+
+  .light {
+    width: 12px;
+    height: 12px;
+
+    &::before {
+      width: 4px;
+      height: 4px;
+    }
+  }
+
+  .startMessage {
+    font-size: $font-size-md;
+  }
+}

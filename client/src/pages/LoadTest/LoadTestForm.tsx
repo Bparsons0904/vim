@@ -1,6 +1,7 @@
 import { Component, createSignal, For } from "solid-js";
 import { Button } from "@components/common/ui/Button/Button";
 import { Card } from "@components/common/ui/Card/Card";
+import { RacingStartLights } from "@components/common/ui/RacingStartLights/RacingStartLights";
 import styles from "./LoadTestForm.module.scss";
 import { LoadTestConfig } from "./LoadTest";
 
@@ -27,6 +28,14 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const [method, setMethod] = createSignal<
     "brute_force" | "batched" | "optimized" | "ludicrous" | "plaid"
   >("brute_force");
+  const [isRacing, setIsRacing] = createSignal(false);
+
+  const handleRaceStart = () => {
+    setIsRacing(true);
+    setTimeout(() => {
+      setIsRacing(false);
+    }, 8500); // 8.5 seconds for the slowest animation to complete
+  };
 
   const handlePresetClick = (value: number) => {
     setRows(value);
@@ -40,6 +49,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
       method: method(),
     };
 
+    // Start the test immediately - lights are just decorative now
     props.onStartTest(config);
   };
 
@@ -57,6 +67,40 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
         return "#6c5ce7"; // Purple for Plaid
       default:
         return "#95a5a6"; // Gray for unknown
+    }
+  };
+
+  const getMethodIcon = (methodValue: string): string => {
+    switch (methodValue) {
+      case "brute_force":
+        return "🐢"; // Turtle - slowest
+      case "batched":
+        return "🚗"; // Car - moderate
+      case "optimized":
+        return "🏎️"; // Race car - fast
+      case "ludicrous":
+        return "🚀"; // Rocket - very fast
+      case "plaid":
+        return "🛸"; // Spaceship - fastest
+      default:
+        return "⚡"; // Lightning - default
+    }
+  };
+
+  const getSpeedLevel = (methodValue: string): number => {
+    switch (methodValue) {
+      case "brute_force":
+        return 1; // 20% speed
+      case "batched":
+        return 2; // 40% speed
+      case "optimized":
+        return 3; // 60% speed
+      case "ludicrous":
+        return 4; // 80% speed
+      case "plaid":
+        return 5; // 100% speed
+      default:
+        return 1;
     }
   };
 
@@ -121,7 +165,12 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
 
         {/* Method Selection */}
         <div class={styles.section}>
-          <h3>Insertion Method</h3>
+          <div class={styles.methodSectionHeader}>
+            <h3>Insertion Method</h3>
+            <div class={styles.racingLightsContainer}>
+              <RacingStartLights onRaceStart={handleRaceStart} />
+            </div>
+          </div>
           <div class={styles.methodOptions}>
             <div
               class={`${styles.methodOption} ${method() === "brute_force" ? styles.selected : ""}`}
@@ -133,16 +182,27 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               onClick={() => !props.disabled && setMethod("brute_force")}
             >
               <div class={styles.methodContent}>
-                <div class={styles.methodHeader}>
-                  <div
-                    class={styles.methodColorIndicator}
-                    style={{
-                      "background-color": getMethodColor("brute_force"),
-                    }}
-                  />
-                  <strong>Brute Force</strong>
+                <div class={styles.methodInfo}>
+                  <div class={styles.methodHeader}>
+                    <div
+                      class={styles.methodColorIndicator}
+                      style={{
+                        "background-color": getMethodColor("brute_force"),
+                      }}
+                    />
+                    <strong>Brute Force</strong>
+                  </div>
+                  <p>Single row inserts - slower but simple</p>
                 </div>
-                <p>Single row inserts - slower but simple</p>
+                <div class={styles.raceTrack}>
+                  <div 
+                    class={`${styles.speedIcon} ${
+                      isRacing() ? styles.raceSpeed1 : ""
+                    }`}
+                  >
+                    {getMethodIcon("brute_force")}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -156,14 +216,25 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               onClick={() => !props.disabled && setMethod("batched")}
             >
               <div class={styles.methodContent}>
-                <div class={styles.methodHeader}>
-                  <div
-                    class={styles.methodColorIndicator}
-                    style={{ "background-color": getMethodColor("batched") }}
-                  />
-                  <strong>Batched</strong>
+                <div class={styles.methodInfo}>
+                  <div class={styles.methodHeader}>
+                    <div
+                      class={styles.methodColorIndicator}
+                      style={{ "background-color": getMethodColor("batched") }}
+                    />
+                    <strong>Batched</strong>
+                  </div>
+                  <p>Batch inserts with GORM - faster</p>
                 </div>
-                <p>Batch inserts with GORM - faster</p>
+                <div class={styles.raceTrack}>
+                  <div 
+                    class={`${styles.speedIcon} ${
+                      isRacing() ? styles.raceSpeed2 : ""
+                    }`}
+                  >
+                    {getMethodIcon("batched")}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -177,14 +248,25 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               onClick={() => !props.disabled && setMethod("optimized")}
             >
               <div class={styles.methodContent}>
-                <div class={styles.methodHeader}>
-                  <div
-                    class={styles.methodColorIndicator}
-                    style={{ "background-color": getMethodColor("optimized") }}
-                  />
-                  <strong>Optimized</strong>
+                <div class={styles.methodInfo}>
+                  <div class={styles.methodHeader}>
+                    <div
+                      class={styles.methodColorIndicator}
+                      style={{ "background-color": getMethodColor("optimized") }}
+                    />
+                    <strong>Optimized</strong>
+                  </div>
+                  <p>Streaming pipeline with concurrent workers</p>
                 </div>
-                <p>Streaming pipeline with concurrent workers</p>
+                <div class={styles.raceTrack}>
+                  <div 
+                    class={`${styles.speedIcon} ${
+                      isRacing() ? styles.raceSpeed3 : ""
+                    }`}
+                  >
+                    {getMethodIcon("optimized")}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -198,14 +280,25 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               onClick={() => !props.disabled && setMethod("ludicrous")}
             >
               <div class={styles.methodContent}>
-                <div class={styles.methodHeader}>
-                  <div
-                    class={styles.methodColorIndicator}
-                    style={{ "background-color": getMethodColor("ludicrous") }}
-                  />
-                  <strong>Ludicrous Speed</strong>
+                <div class={styles.methodInfo}>
+                  <div class={styles.methodHeader}>
+                    <div
+                      class={styles.methodColorIndicator}
+                      style={{ "background-color": getMethodColor("ludicrous") }}
+                    />
+                    <strong>Ludicrous Speed</strong>
+                  </div>
+                  <p>Raw SQL with minimal overhead - insanely fast</p>
                 </div>
-                <p>Raw SQL with minimal overhead - insanely fast</p>
+                <div class={styles.raceTrack}>
+                  <div 
+                    class={`${styles.speedIcon} ${
+                      isRacing() ? styles.raceSpeed4 : ""
+                    }`}
+                  >
+                    {getMethodIcon("ludicrous")}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -219,14 +312,25 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               onClick={() => !props.disabled && setMethod("plaid")}
             >
               <div class={styles.methodContent}>
-                <div class={styles.methodHeader}>
-                  <div
-                    class={styles.methodColorIndicator}
-                    style={{ "background-color": getMethodColor("plaid") }}
-                  />
-                  <strong>Plaid Speed</strong>
+                <div class={styles.methodInfo}>
+                  <div class={styles.methodHeader}>
+                    <div
+                      class={styles.methodColorIndicator}
+                      style={{ "background-color": getMethodColor("plaid") }}
+                    />
+                    <strong>Plaid Speed</strong>
+                  </div>
+                  <p>PostgreSQL Streaming - ultimate performance</p>
                 </div>
-                <p>PostgreSQL Streaming - ultimate performance</p>
+                <div class={styles.raceTrack}>
+                  <div 
+                    class={`${styles.speedIcon} ${
+                      isRacing() ? styles.raceSpeed5 : ""
+                    }`}
+                  >
+                    {getMethodIcon("plaid")}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
