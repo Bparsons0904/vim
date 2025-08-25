@@ -61,11 +61,11 @@ func (c *LudicrousOnlyController) CreateAndRunTest(
 
 	loadTest := &LoadTest{
 		// Let GORM handle ID generation automatically
-		Rows:          req.Rows,
-		Columns:       FixedTotalColumns,
-		DateColumns:   FixedDateColumns,
-		Method:        "ludicrous", // Force ludicrous method
-		Status:        "running",
+		Rows:        req.Rows,
+		Columns:     FixedTotalColumns,
+		DateColumns: FixedDateColumns,
+		Method:      "ludicrous", // Force ludicrous method
+		Status:      "running",
 	}
 
 	if err := c.loadTestRepo.Create(ctx, loadTest); err != nil {
@@ -534,7 +534,7 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 
 	// Ludicrous speed configuration - maximize performance
 	numWorkers := runtime.NumCPU() * 2 // Double the workers
-	batchSize := 2000                  // Larger batches
+	batchSize := 2500                  // Larger batches
 	bufferSize := numWorkers * 8       // Larger buffer
 
 	log.Info("Starting ludicrous speed streaming insertion",
@@ -748,7 +748,6 @@ func (c *LudicrousOnlyController) parseLudicrousCSVStreaming(
 	done <- nil
 }
 
-// ludicrousWorker processes batches for ludicrous speed method using raw SQL
 func (c *LudicrousOnlyController) ludicrousWorker(
 	ctx context.Context,
 	workerID int,
@@ -803,7 +802,11 @@ func (c *LudicrousOnlyController) insertBatchWithRawSQLLudicrous(
 
 	// Build VALUES clauses
 	var valueClauses []string
-	args := make([]interface{}, 0, len(records)*13) // 13 columns (removed id, created_at, updated_at)
+	args := make(
+		[]interface{},
+		0,
+		len(records)*13,
+	) // 13 columns (removed id, created_at, updated_at)
 
 	for i, record := range records {
 		// Build placeholders
@@ -1031,4 +1034,3 @@ func (c *LudicrousOnlyController) GetPerformanceSummary(
 
 	return []*PerformanceSummary{summary}, nil
 }
-
