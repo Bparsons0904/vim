@@ -534,7 +534,7 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 
 	// Ludicrous speed configuration - maximize performance
 	numWorkers := runtime.NumCPU() * 2 // Double the workers
-	batchSize := 2500                  // Larger batches
+	batchSize := 2250                  // Larger batches
 	bufferSize := numWorkers * 8       // Larger buffer
 
 	log.Info("Starting ludicrous speed streaming insertion",
