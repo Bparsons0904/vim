@@ -98,20 +98,9 @@
 
 .timeline {
   display: flex;
-  justify-content: space-between;
-  position: relative;
+  align-items: center;
   padding: $spacing-md 0;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 10%;
-    right: 10%;
-    height: 2px;
-    background: $border-default;
-    z-index: 1;
-  }
+  gap: 0;
 }
 
 .timelineItem {
@@ -119,10 +108,7 @@
   flex-direction: column;
   align-items: center;
   gap: $spacing-sm;
-  position: relative;
-  z-index: 2;
   flex: 1;
-  max-width: 120px;
   
   &.active {
     .timelineIcon {
@@ -146,6 +132,18 @@
     .timelineContent h4 {
       color: $color-success-500;
     }
+  }
+}
+
+.timelineConnector {
+  height: 2px;
+  flex: 1;
+  background: $border-default;
+  margin: 0 $spacing-sm;
+  transition: background-color 0.3s ease;
+  
+  &.completed {
+    background: $color-success-500;
   }
 }
 

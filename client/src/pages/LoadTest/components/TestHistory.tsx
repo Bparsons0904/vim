@@ -81,8 +81,27 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
         return 'Optimized';
       case 'ludicrous':
         return 'Ludicrous Speed';
+      case 'plaid':
+        return 'Plaid';
       default:
         return method;
+    }
+  };
+
+  const getMethodColor = (method: string): string => {
+    switch (method) {
+      case 'brute_force':
+        return '#f39c12'; // Orange/yellow for warning
+      case 'batched':
+        return '#3498db'; // Blue for info
+      case 'optimized':
+        return '#27ae60'; // Green for success
+      case 'ludicrous':
+        return '#e74c3c'; // Red for primary/intense
+      case 'plaid':
+        return '#6c5ce7'; // Purple for Plaid
+      default:
+        return '#95a5a6'; // Gray for unknown
     }
   };
 
@@ -136,6 +155,10 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
                     {formatTestDate(test.createdAt)}
                   </div>
                   <div class={styles.itemMethod}>
+                    <span 
+                      class={styles.methodIcon}
+                      style={{ 'background-color': getMethodColor(test.method) }}
+                    />
                     {getMethodDisplayName(test.method)}
                   </div>
                 </div>

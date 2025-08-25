@@ -99,6 +99,9 @@
 }
 
 .itemMethod {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   font-weight: 500;
@@ -106,6 +109,13 @@
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
+}
+
+.methodIcon {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .itemDetails {

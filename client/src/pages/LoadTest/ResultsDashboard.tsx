@@ -50,7 +50,9 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
 
     return completed.reduce((best, test) => {
       if (!test.totalTime || !best.totalTime) return test.totalTime ? test : best;
-      return test.totalTime < best.totalTime ? test : best;
+      const testRate = (test.rows / test.totalTime!) * 1000;
+      const bestRate = (best.rows / best.totalTime!) * 1000;
+      return testRate > bestRate ? test : best;
     });
   });
 
@@ -69,6 +71,14 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
       avgRows: Math.round(avgRows),
       avgRate: Math.round((avgRows / avgTime) * 1000)
     };
+  });
+
+  const getTotalRowsProcessed = createMemo(() => {
+    const completed = completedTests();
+    if (completed.length === 0) return 0;
+    
+    const totalRows = completed.reduce((sum, test) => sum + test.rows, 0);
+    return (totalRows / 1000000).toFixed(1); // Convert to millions
   });
 
   return (
@@ -178,9 +188,8 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
             <Show when={getBestPerformance()}>
               <div class={styles.summaryItem}>
                 <h3>Best Performance</h3>
-                <div class={styles.summaryValue}>{formatTime(getBestPerformance()!.totalTime)}</div>
-                <div class={styles.summaryDetail}>
-                  {getBestPerformance()!.rows.toLocaleString()} rows
+                <div class={styles.summaryValue}>
+                  {formatRate(getBestPerformance()!.rows, getBestPerformance()!.totalTime)}
                 </div>
               </div>
             </Show>
@@ -191,9 +200,13 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
                 <div class={styles.summaryValue}>
                   {getAveragePerformance()!.avgRate.toLocaleString()} rows/sec
                 </div>
-                <div class={styles.summaryDetail}>
-                  {getAveragePerformance()!.avgTime}ms avg
-                </div>
+              </div>
+            </Show>
+            
+            <Show when={completedTests().length > 0}>
+              <div class={styles.summaryItem}>
+                <h3>Total Rows</h3>
+                <div class={styles.summaryValue}>{getTotalRowsProcessed()}M</div>
               </div>
             </Show>
           </div>

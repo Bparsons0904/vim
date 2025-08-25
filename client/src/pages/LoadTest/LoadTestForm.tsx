@@ -23,7 +23,9 @@ const ROW_PRESETS = [
 
 export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const [rows, setRows] = createSignal(10000);
-  const [method, setMethod] = createSignal<'brute_force' | 'batched' | 'optimized' | 'ludicrous' | 'plaid'>('batched');
+  const [method, setMethod] = createSignal<
+    "brute_force" | "batched" | "optimized" | "ludicrous" | "plaid"
+  >("brute_force");
 
   const handlePresetClick = (value: number) => {
     setRows(value);
@@ -31,7 +33,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    
+
     const config: LoadTestConfig = {
       rows: rows(),
       method: method(),
@@ -40,29 +42,46 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
     props.onStartTest(config);
   };
 
+  const getMethodColor = (methodValue: string): string => {
+    switch (methodValue) {
+      case 'brute_force':
+        return '#f39c12'; // Orange/yellow for warning
+      case 'batched':
+        return '#3498db'; // Blue for info
+      case 'optimized':
+        return '#27ae60'; // Green for success
+      case 'ludicrous':
+        return '#e74c3c'; // Red for primary/intense
+      case 'plaid':
+        return '#6c5ce7'; // Purple for Plaid
+      default:
+        return '#95a5a6'; // Gray for unknown
+    }
+  };
+
   const getEstimatedTime = () => {
     let rowsPerSecond;
     switch (method()) {
-      case 'plaid':
+      case "plaid":
         rowsPerSecond = 200000; // PostgreSQL COPY should be the fastest
         break;
-      case 'ludicrous':
+      case "ludicrous":
         rowsPerSecond = 160000; // Double the optimized performance
         break;
-      case 'optimized':
+      case "optimized":
         rowsPerSecond = 80000; // Estimated higher throughput for optimized method
         break;
-      case 'batched':
+      case "batched":
         rowsPerSecond = 50000;
         break;
-      case 'brute_force':
+      case "brute_force":
       default:
         rowsPerSecond = 100;
         break;
     }
-    
+
     const estimatedSeconds = Math.ceil(rows() / rowsPerSecond);
-    
+
     if (estimatedSeconds < 60) {
       return `~${estimatedSeconds}s`;
     } else if (estimatedSeconds < 3600) {
@@ -75,37 +94,27 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   return (
     <Card class={styles.formCard}>
       <h2>Test Configuration</h2>
-      
+
       <form onSubmit={handleSubmit} class={styles.form}>
         {/* Row Count Selection */}
         <div class={styles.section}>
           <h3>Row Count</h3>
           <div class={styles.presetButtons}>
             <For each={ROW_PRESETS}>
-              {(preset) => (
-                <Button
-                  variant={rows() === preset.value ? "primary" : "secondary"}
-                  size="sm"
-                  onClick={() => handlePresetClick(preset.value)}
-                  disabled={props.disabled}
-                >
-                  {preset.label}
-                </Button>
-              )}
+              {(preset) => {
+                const isSelected = () => rows() === preset.value;
+                return (
+                  <Button
+                    variant={isSelected() ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => handlePresetClick(preset.value)}
+                    disabled={props.disabled}
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              }}
             </For>
-          </div>
-        </div>
-
-        {/* Fixed Column Configuration Info */}
-        <div class={styles.section}>
-          <h3>Column Configuration</h3>
-          <div class={styles.fixedConfig}>
-            <p>Uses a fixed set of 25 meaningful demographic, employment, and health columns plus 125 additional columns for testing (150 total).</p>
-            <div class={styles.configDetails}>
-              <span><strong>25</strong> meaningful columns (names, addresses, employment, insurance)</span>
-              <span><strong>125</strong> ignored filler columns</span>
-              <span><strong>6</strong> date columns with validation</span>
-            </div>
           </div>
         </div>
 
@@ -113,80 +122,80 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
         <div class={styles.section}>
           <h3>Insertion Method</h3>
           <div class={styles.methodOptions}>
-            <label class={styles.radioOption}>
-              <input
-                type="radio"
-                name="method"
-                value="brute_force"
-                checked={method() === 'brute_force'}
-                onChange={() => setMethod('brute_force')}
-                disabled={props.disabled}
-              />
-              <div class={styles.radioContent}>
-                <strong>Brute Force</strong>
+            <div class={`${styles.methodOption} ${method() === "brute_force" ? styles.selected : ""}`}
+                 style={method() === "brute_force" ? {"border-color": getMethodColor("brute_force")} : {}}
+                 onClick={() => !props.disabled && setMethod("brute_force")}>
+              <div class={styles.methodContent}>
+                <div class={styles.methodHeader}>
+                  <div 
+                    class={styles.methodColorIndicator}
+                    style={{"background-color": getMethodColor("brute_force")}}
+                  />
+                  <strong>Brute Force</strong>
+                </div>
                 <p>Single row inserts - slower but simple</p>
               </div>
-            </label>
-            
-            <label class={styles.radioOption}>
-              <input
-                type="radio"
-                name="method"
-                value="batched"
-                checked={method() === 'batched'}
-                onChange={() => setMethod('batched')}
-                disabled={props.disabled}
-              />
-              <div class={styles.radioContent}>
-                <strong>Batched</strong>
-                <p>Batch inserts with transactions - faster</p>
+            </div>
+
+            <div class={`${styles.methodOption} ${method() === "batched" ? styles.selected : ""}`}
+                 style={method() === "batched" ? {"border-color": getMethodColor("batched")} : {}}
+                 onClick={() => !props.disabled && setMethod("batched")}>
+              <div class={styles.methodContent}>
+                <div class={styles.methodHeader}>
+                  <div 
+                    class={styles.methodColorIndicator}
+                    style={{"background-color": getMethodColor("batched")}}
+                  />
+                  <strong>Batched</strong>
+                </div>
+                <p>Batch inserts with GORM - faster</p>
               </div>
-            </label>
-            
-            <label class={styles.radioOption}>
-              <input
-                type="radio"
-                name="method"
-                value="optimized"
-                checked={method() === 'optimized'}
-                onChange={() => setMethod('optimized')}
-                disabled={props.disabled}
-              />
-              <div class={styles.radioContent}>
-                <strong>Optimized</strong>
-                <p>Streaming pipeline with concurrent workers (GORM)</p>
+            </div>
+
+            <div class={`${styles.methodOption} ${method() === "optimized" ? styles.selected : ""}`}
+                 style={method() === "optimized" ? {"border-color": getMethodColor("optimized")} : {}}
+                 onClick={() => !props.disabled && setMethod("optimized")}>
+              <div class={styles.methodContent}>
+                <div class={styles.methodHeader}>
+                  <div 
+                    class={styles.methodColorIndicator}
+                    style={{"background-color": getMethodColor("optimized")}}
+                  />
+                  <strong>Optimized</strong>
+                </div>
+                <p>Streaming pipeline with concurrent workers</p>
               </div>
-            </label>
-            
-            <label class={styles.radioOption}>
-              <input
-                type="radio"
-                name="method"
-                value="ludicrous"
-                checked={method() === 'ludicrous'}
-                onChange={() => setMethod('ludicrous')}
-                disabled={props.disabled}
-              />
-              <div class={styles.radioContent}>
-                <strong>Ludicrous Speed</strong>
+            </div>
+
+            <div class={`${styles.methodOption} ${method() === "ludicrous" ? styles.selected : ""}`}
+                 style={method() === "ludicrous" ? {"border-color": getMethodColor("ludicrous")} : {}}
+                 onClick={() => !props.disabled && setMethod("ludicrous")}>
+              <div class={styles.methodContent}>
+                <div class={styles.methodHeader}>
+                  <div 
+                    class={styles.methodColorIndicator}
+                    style={{"background-color": getMethodColor("ludicrous")}}
+                  />
+                  <strong>Ludicrous Speed</strong>
+                </div>
                 <p>Raw SQL with minimal overhead - insanely fast</p>
               </div>
-            </label>
-            
-            <label class={styles.radioOption}>
-              <input
-                type="radio"
-                name="method"
-                value="plaid"
-                checked={method() === 'plaid'}
-                onChange={() => setMethod('plaid')}
-                disabled={props.disabled}
-              />
-              <div class={styles.radioContent}>
-                <strong>Plaid (COPY)</strong>
-                <p>PostgreSQL COPY FROM STDIN - ultimate performance</p>
+            </div>
+
+            <div class={`${styles.methodOption} ${method() === "plaid" ? styles.selected : ""}`}
+                 style={method() === "plaid" ? {"border-color": getMethodColor("plaid")} : {}}
+                 onClick={() => !props.disabled && setMethod("plaid")}>
+              <div class={styles.methodContent}>
+                <div class={styles.methodHeader}>
+                  <div 
+                    class={styles.methodColorIndicator}
+                    style={{"background-color": getMethodColor("plaid")}}
+                  />
+                  <strong>Plaid Speed</strong>
+                </div>
+                <p>PostgreSQL Streaming - ultimate performance</p>
               </div>
-            </label>
+            </div>
           </div>
         </div>
 
@@ -195,21 +204,23 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
           <h3>Test Summary</h3>
           <div class={styles.summaryGrid}>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Rows:</span>
-              <span class={styles.summaryValue}>{rows().toLocaleString()}</span>
+              <span class={styles.summaryLabel}>Rows: {rows().toLocaleString()}</span>
             </div>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Method:</span>
-              <span class={styles.summaryValue}>
-                {method() === 'batched' ? 'Batched' : 
-                 method() === 'optimized' ? 'Optimized' : 
-                 method() === 'ludicrous' ? 'Ludicrous Speed' :
-                 method() === 'plaid' ? 'Plaid (COPY)' : 'Brute Force'}
+              <span class={styles.summaryLabel}>
+                Method: {method() === "batched"
+                  ? "Batched"
+                  : method() === "optimized"
+                    ? "Optimized"
+                    : method() === "ludicrous"
+                      ? "Ludicrous Speed"
+                      : method() === "plaid"
+                        ? "Plaid (COPY)"
+                        : "Brute Force"}
               </span>
             </div>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Est. Time:</span>
-              <span class={styles.summaryValue}>{getEstimatedTime()}</span>
+              <span class={styles.summaryLabel}>Est. Time: {getEstimatedTime()}</span>
             </div>
           </div>
         </div>
