@@ -165,9 +165,9 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
                 
                 <div class={styles.itemDetails}>
                   <span class={styles.detail}>{test.rows.toLocaleString()} rows</span>
-                  <Show when={test.status === 'completed' && test.totalTime}>
-                    <span class={styles.detail}>{formatTime(test.totalTime)}</span>
-                    <span class={styles.detail}>{formatRate(test.rows, test.totalTime)}</span>
+                  <Show when={test.status === 'completed' && test.parseTime && test.insertTime}>
+                    <span class={styles.detail}>{formatTime((test.parseTime || 0) + (test.insertTime || 0))}</span>
+                    <span class={styles.detail}>{formatRate(test.rows, (test.parseTime || 0) + (test.insertTime || 0))}</span>
                   </Show>
                 </div>
                 

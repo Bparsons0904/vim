@@ -117,12 +117,14 @@ func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest 
 		"message":         "Starting ludicrous speed streaming insertion...",
 	})
 
+	// Start timing for parse + insert only (excluding CSV generation)
+	parseInsertStartTime := time.Now()
 	timingResult, err := c.insertLudicrousStreaming(
 		ctx,
 		csvPath,
 		loadTest.ID,
 		loadTest.Rows,
-		time.Now(),
+		parseInsertStartTime,
 		testID,
 	)
 	if err != nil {
@@ -608,7 +610,7 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 		}
 	}
 
-	insertTime := int(time.Since(startTime).Milliseconds())
+	totalParseInsertTime := int(time.Since(startTime).Milliseconds())
 
 	// Send final progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -617,7 +619,7 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 		"phaseProgress":   100,
 		"currentPhase":    "Ludicrous Speed Complete",
 		"rowsProcessed":   progress.RecordsProcessed,
-		"rowsPerSecond":   int(float64(progress.RecordsProcessed) / (float64(insertTime) / 1000)),
+		"rowsPerSecond":   int(float64(progress.RecordsProcessed) / (float64(totalParseInsertTime) / 1000)),
 		"eta":             "Done",
 		"message": fmt.Sprintf(
 			"Successfully inserted %d records using ludicrous speed",
@@ -625,14 +627,17 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 		),
 	})
 
+	// Calculate actual insert time (total - parse time)
+	actualInsertTime := totalParseInsertTime - int(parseTime.Milliseconds())
+
 	log.Info("ludicrous speed streaming insertion completed",
 		"totalRecords", progress.RecordsProcessed,
 		"parseTimeMs", parseTime.Milliseconds(),
-		"insertTimeMs", insertTime)
+		"insertTimeMs", actualInsertTime)
 
 	return LudicrousTimingResult{
 		ParseTime:  int(parseTime.Milliseconds()),
-		InsertTime: insertTime,
+		InsertTime: actualInsertTime,
 	}, nil
 }
 
@@ -983,10 +988,12 @@ func (c *LudicrousOnlyController) GetPerformanceSummary(
 	var totalTimeValues []int
 
 	for _, test := range ludicrousTests {
-		if test.TotalTime != nil && *test.TotalTime > 0 {
-			rowsPerSec := int(float64(test.Rows) / (float64(*test.TotalTime) / 1000.0))
+		// Use parseTime + insertTime to exclude CSV generation time
+		if test.ParseTime != nil && test.InsertTime != nil && (*test.ParseTime + *test.InsertTime) > 0 {
+			parseInsertTime := *test.ParseTime + *test.InsertTime
+			rowsPerSec := int(float64(test.Rows) / (float64(parseInsertTime) / 1000.0))
 			rowsPerSecondValues = append(rowsPerSecondValues, rowsPerSec)
-			totalTimeValues = append(totalTimeValues, *test.TotalTime)
+			totalTimeValues = append(totalTimeValues, parseInsertTime)
 		}
 	}
 

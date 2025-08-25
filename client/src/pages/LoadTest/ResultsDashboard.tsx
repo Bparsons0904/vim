@@ -49,9 +49,12 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
     if (completed.length === 0) return null;
 
     return completed.reduce((best, test) => {
-      if (!test.totalTime || !best.totalTime) return test.totalTime ? test : best;
-      const testRate = (test.rows / test.totalTime!) * 1000;
-      const bestRate = (best.rows / best.totalTime!) * 1000;
+      // Use parseTime + insertTime to exclude CSV generation time
+      const testParseInsertTime = (test.parseTime || 0) + (test.insertTime || 0);
+      const bestParseInsertTime = (best.parseTime || 0) + (best.insertTime || 0);
+      if (!testParseInsertTime || !bestParseInsertTime) return testParseInsertTime ? test : best;
+      const testRate = (test.rows / testParseInsertTime) * 1000;
+      const bestRate = (best.rows / bestParseInsertTime) * 1000;
       return testRate > bestRate ? test : best;
     });
   });
@@ -60,10 +63,11 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
     const completed = completedTests();
     if (completed.length === 0) return null;
 
-    const validTests = completed.filter(test => test.totalTime);
+    // Filter tests that have both parseTime and insertTime
+    const validTests = completed.filter(test => test.parseTime && test.insertTime);
     if (validTests.length === 0) return null;
 
-    const avgTime = validTests.reduce((sum, test) => sum + (test.totalTime || 0), 0) / validTests.length;
+    const avgTime = validTests.reduce((sum, test) => sum + ((test.parseTime || 0) + (test.insertTime || 0)), 0) / validTests.length;
     const avgRows = validTests.reduce((sum, test) => sum + test.rows, 0) / validTests.length;
     
     return {
@@ -164,9 +168,9 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
                   <span class={styles.metricValue}>{formatTime(props.currentTest!.totalTime)}</span>
                 </div>
                 <div class={styles.metric}>
-                  <span class={styles.metricLabel}>Insert Rate</span>
+                  <span class={styles.metricLabel}>Parse + Insert Rate</span>
                   <span class={styles.metricValue}>
-                    {formatRate(props.currentTest!.rows, props.currentTest!.insertTime)}
+                    {formatRate(props.currentTest!.rows, (props.currentTest!.parseTime || 0) + (props.currentTest!.insertTime || 0))}
                   </span>
                 </div>
               </div>
@@ -189,7 +193,7 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
               <div class={styles.summaryItem}>
                 <h3>Best Performance</h3>
                 <div class={styles.summaryValue}>
-                  {formatRate(getBestPerformance()!.rows, getBestPerformance()!.totalTime)}
+                  {formatRate(getBestPerformance()!.rows, (getBestPerformance()!.parseTime || 0) + (getBestPerformance()!.insertTime || 0))}
                 </div>
               </div>
             </Show>
