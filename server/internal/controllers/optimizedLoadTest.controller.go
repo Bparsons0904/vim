@@ -165,93 +165,7 @@ func (c *OptimizedLoadTestController) InsertLudicrousSpeed(
 	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
 }
 
-// InsertPlaidCopy performs streaming CSV parsing with PostgreSQL COPY FROM STDIN for maximum performance
-func (c *OptimizedLoadTestController) InsertPlaidCopy(
-	ctx context.Context,
-	csvPath string,
-	loadTestID uuid.UUID,
-	totalRecords int,
-	startTime time.Time,
-	testID string,
-) (TimingResult, error) {
-	c.log.Info("Starting Plaid COPY insertion",
-		"totalRecords", totalRecords,
-		"method", "PostgreSQL COPY FROM STDIN")
 
-	// Open CSV file
-	file, err := os.Open(csvPath)
-	if err != nil {
-		return TimingResult{}, fmt.Errorf("failed to open CSV file: %w", err)
-	}
-	defer file.Close()
-
-	// Initialize progress tracking
-	progress := &Progress{
-		TotalRecords:     totalRecords,
-		TotalBatches:     1, // COPY is essentially one big batch
-		StartTime:        startTime,
-		RecordsProcessed: 0,
-		BatchesProcessed: 0,
-	}
-
-	// Start progress monitoring goroutine
-	progressDone := make(chan bool)
-	go c.monitorPlaidCopyProgress(progress, testID, progressDone)
-
-	// Start CSV parsing and COPY operation
-	parseStartTime := time.Now()
-	insertTime, err := c.executeStreamingCopy(ctx, file, loadTestID, progress, testID)
-	if err != nil {
-		close(progressDone)
-		return TimingResult{}, fmt.Errorf("streaming COPY failed: %w", err)
-	}
-	parseTime := time.Since(parseStartTime)
-
-	// Stop progress monitoring
-	close(progressDone)
-
-	// Log final timing breakdown
-	progress.mu.RLock()
-	finalProcessed := progress.RecordsProcessed
-	progress.mu.RUnlock()
-
-	var rowsPerSecond int
-	if insertTime > 0 {
-		rowsPerSecond = int(float64(finalProcessed) / (float64(insertTime) / 1000))
-	}
-
-	c.log.Info("Plaid COPY insertion timing breakdown",
-		"totalTime", time.Since(startTime),
-		"parseTime", parseTime,
-		"insertTime", time.Duration(insertTime)*time.Millisecond,
-		"finalProcessed", finalProcessed,
-		"rowsPerSecond", rowsPerSecond)
-
-	// Send final progress update
-	c.wsManager.SendLoadTestProgress(testID, map[string]any{
-		"phase":           "insertion",
-		"overallProgress": 100,
-		"phaseProgress":   100,
-		"currentPhase":    "Plaid COPY Complete",
-		"rowsProcessed":   progress.RecordsProcessed,
-		"rowsPerSecond":   rowsPerSecond,
-		"eta":             "Done",
-		"message": fmt.Sprintf(
-			"Successfully inserted %d records using Plaid PostgreSQL COPY",
-			progress.RecordsProcessed,
-		),
-	})
-
-	c.log.Info("Plaid COPY insertion completed",
-		"totalRecords", progress.RecordsProcessed,
-		"insertTimeMs", insertTime,
-		"rowsPerSecond", rowsPerSecond)
-
-	return TimingResult{
-		ParseTime:  int(parseTime.Milliseconds()),
-		InsertTime: insertTime,
-	}, nil
-}
 
 // insertWithConfig performs the actual insertion logic with given configuration
 func (c *OptimizedLoadTestController) insertWithConfig(
@@ -556,10 +470,7 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 		testData := testDataPool.Get().(*TestData)
 		*testData = TestData{}
 
-		now := time.Now()
 		testData.ID = uuid.New()
-		testData.CreatedAt = now
-		testData.UpdatedAt = now
 		testData.LoadTestID = loadTestID
 
 		// Use the setters to populate the struct
@@ -705,7 +616,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 
 	// Build a single INSERT statement with multiple VALUE clauses
 	const baseSQL = `INSERT INTO test_data (
-		id, created_at, updated_at, deleted_at, load_test_id, birth_date, start_date, end_date,
+		id, load_test_id, birth_date, start_date, end_date,
 		first_name, last_name, email, phone, address_line1, address_line2,
 		city, state, zip_code, country, social_security_no, employer, job_title,
 		department, salary, insurance_plan_id, insurance_carrier, policy_number,
@@ -714,13 +625,13 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 
 	// Build VALUES clauses and args slice
 	var valueClauses []string
-	args := make([]interface{}, 0, len(records)*28) // 28 columns per record (including deleted_at)
+	args := make([]interface{}, 0, len(records)*25) // 25 columns per record
 
 	for i, record := range records {
 		// Build PostgreSQL-style placeholders ($1, $2, $3...)
-		placeholders := make([]string, 28)
-		for j := 0; j < 28; j++ {
-			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
+		placeholders := make([]string, 25)
+		for j := 0; j < 25; j++ {
+			placeholders[j] = fmt.Sprintf("$%d", i*25+j+1)
 		}
 		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
 
@@ -735,9 +646,6 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 
 		args = append(args,
 			record.ID,
-			record.CreatedAt,
-			record.UpdatedAt,
-			nil, // deleted_at is always NULL for new records
 			record.LoadTestID,
 			getStringValue(record.BirthDate),
 			getStringValue(record.StartDate),
@@ -811,7 +719,7 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 
 	// Build a single INSERT statement with multiple VALUE clauses
 	const baseSQL = `INSERT INTO test_data (
-		id, created_at, updated_at, deleted_at, load_test_id, birth_date, start_date, end_date,
+		id, load_test_id, birth_date, start_date, end_date,
 		first_name, last_name, email, phone, address_line1, address_line2,
 		city, state, zip_code, country, social_security_no, employer, job_title,
 		department, salary, insurance_plan_id, insurance_carrier, policy_number,
@@ -820,13 +728,13 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 
 	// Build VALUES clauses and args slice
 	var valueClauses []string
-	args := make([]interface{}, 0, len(records)*28) // 28 columns per record (including deleted_at)
+	args := make([]interface{}, 0, len(records)*25) // 25 columns per record
 
 	for i, record := range records {
 		// Build PostgreSQL-style placeholders ($1, $2, $3...)
-		placeholders := make([]string, 28)
-		for j := 0; j < 28; j++ {
-			placeholders[j] = fmt.Sprintf("$%d", i*28+j+1)
+		placeholders := make([]string, 25)
+		for j := 0; j < 25; j++ {
+			placeholders[j] = fmt.Sprintf("$%d", i*25+j+1)
 		}
 		valueClauses = append(valueClauses, "("+strings.Join(placeholders, ", ")+")")
 
@@ -841,9 +749,6 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 
 		args = append(args,
 			record.ID,
-			record.CreatedAt,
-			record.UpdatedAt,
-			nil, // deleted_at is always NULL for new records
 			record.LoadTestID,
 			getStringValue(record.BirthDate),
 			getStringValue(record.StartDate),

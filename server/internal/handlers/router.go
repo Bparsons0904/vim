@@ -22,6 +22,8 @@ func Router(router fiber.Router, app *app.App) (err error) {
 	HealthHandler(api, app.Config)
 	NewUserHandler(*app, api).Register()
 	NewLoadTestHandler(*app, api).Register()
+	NewOptimizedLoadTestHandler(*app, api).Register()
+	NewLudicrousLoadTestHandler(*app, api).Register()
 
 	return nil
 }

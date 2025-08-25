@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"server/config"
 	"server/internal/database"
 	"server/internal/logger"
 	"server/internal/repositories"
@@ -20,7 +21,9 @@ import (
 type LoadTestController struct {
 	loadTestRepo        repositories.LoadTestRepository
 	testDataRepo        repositories.TestDataRepository
-	optimizedController *OptimizedLoadTestController
+	plaidController     *PlaidController
+	optimizedController *OptimizedOnlyController
+	ludicrousController *LudicrousOnlyController
 	dateUtils           *utils.DateUtils
 	log                 logger.Logger
 	wsManager           WSManager
@@ -38,13 +41,18 @@ func NewLoadTestController(
 	testDataRepo repositories.TestDataRepository,
 	db database.DB,
 	wsManager WSManager,
+	config config.Config,
+	plaidController *PlaidController,
 ) *LoadTestController {
-	optimizedController := NewOptimizedLoadTestController(db, loadTestRepo, testDataRepo, wsManager)
+	optimizedController := NewOptimizedOnlyController(loadTestRepo, testDataRepo, db, wsManager, config)
+	ludicrousController := NewLudicrousOnlyController(loadTestRepo, testDataRepo, db, wsManager, config)
 	
 	return &LoadTestController{
 		loadTestRepo:        loadTestRepo,
 		testDataRepo:        testDataRepo,
+		plaidController:     plaidController,
 		optimizedController: optimizedController,
+		ludicrousController: ludicrousController,
 		dateUtils:           utils.NewDateUtils(),
 		log:                 logger.New("loadTestController"),
 		wsManager:           wsManager,
@@ -93,18 +101,29 @@ func GetMeaningfulColumns() []string {
 func (c *LoadTestController) CreateAndRunTest(ctx context.Context, req *CreateLoadTestRequest) (*LoadTest, error) {
 	log := c.log.Function("CreateAndRunTest")
 	
+	// Delegate to dedicated controllers for optimized and ludicrous methods
+	if req.Method == "optimized" {
+		log.Info("delegating to optimized controller", "method", req.Method)
+		return c.optimizedController.CreateAndRunTest(ctx, req)
+	}
+	
+	if req.Method == "ludicrous" {
+		log.Info("delegating to ludicrous controller", "method", req.Method)
+		return c.ludicrousController.CreateAndRunTest(ctx, req)
+	}
+	
 	// Create the LoadTest record with fixed column structure
 	// We use a fixed structure: 5 date columns + 20 regular columns = 25 total
 	const FixedTotalColumns = 25
 	const FixedDateColumns = 5 // We populate all 5 available date columns
 	
 	loadTest := &LoadTest{
-		BaseUUIDModel: BaseUUIDModel{ID: uuid.New()},
-		Rows:          req.Rows,
-		Columns:       FixedTotalColumns,     // Override: always use 25 columns
-		DateColumns:   FixedDateColumns,      // Override: always populate 6 date columns
-		Method:        req.Method,
-		Status:        "running",
+		ID:          uuid.New(),
+		Rows:        req.Rows,
+		Columns:     FixedTotalColumns, // Override: always use 25 columns
+		DateColumns: FixedDateColumns,  // Override: always populate 6 date columns
+		Method:      req.Method,
+		Status:      "running",
 	}
 
 	if err := c.loadTestRepo.Create(ctx, loadTest); err != nil {
@@ -264,124 +283,6 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		return
 	}
 
-	// Handle optimized, ludicrous, and plaid methods differently - bypass parsing and use streaming pipeline
-	if loadTest.Method == "optimized" {
-		// Go directly to optimized streaming insertion
-		c.wsManager.SendLoadTestProgress(testID, map[string]any{
-			"phase":            "insertion",
-			"overallProgress":  25,
-			"phaseProgress":    0,
-			"currentPhase":     "Optimized Streaming Insertion",
-			"rowsProcessed":    0,
-			"rowsPerSecond":    0,
-			"eta":              "Calculating...",
-			"message":          "Starting optimized streaming insertion (parsing + inserting concurrently)...",
-		})
-		
-		timingResult, err := c.optimizedController.InsertOptimizedWithProgress(
-			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
-		)
-		if err != nil {
-			c.updateLoadTestError(ctx, loadTest, "Optimized insertion failed", err)
-			c.wsManager.SendLoadTestError(testID, "Optimized insertion failed: "+err.Error())
-			return
-		}
-		
-		// Update load test with completion data (with actual parse time from optimized method)
-		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
-		insertTime := timingResult.InsertTime
-		parseTime := timingResult.ParseTime
-		totalTime := parseTime + insertTime
-		
-		loadTest.CSVGenTime = &csvGenTime
-		loadTest.ParseTime = &parseTime
-		loadTest.InsertTime = &insertTime
-		loadTest.TotalTime = &totalTime
-		loadTest.Status = "completed"
-		
-		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
-			_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
-		}
-		
-		// Send completion notification
-		c.wsManager.SendLoadTestComplete(testID, map[string]any{
-			"id":           loadTest.ID.String(),
-			"rows":         loadTest.Rows,
-			"columns":      loadTest.Columns,
-			"dateColumns":  loadTest.DateColumns,
-			"method":       loadTest.Method,
-			"status":       "completed",
-			"csvGenTime":   csvGenTime,
-			"parseTime":    parseTime,
-			"insertTime":   insertTime,
-			"totalTime":    totalTime,
-		})
-		
-		log.Info("optimized load test completed successfully", 
-			"loadTestId", loadTest.ID,
-			"totalTime", totalTime,
-			"method", loadTest.Method)
-		return
-	}
-	
-	if loadTest.Method == "ludicrous" {
-		// Go directly to ludicrous streaming insertion
-		c.wsManager.SendLoadTestProgress(testID, map[string]any{
-			"phase":            "insertion",
-			"overallProgress":  25,
-			"phaseProgress":    0,
-			"currentPhase":     "Ludicrous Speed Insertion",
-			"rowsProcessed":    0,
-			"rowsPerSecond":    0,
-			"eta":              "Calculating...",
-			"message":          "Starting ludicrous speed insertion (parsing + inserting concurrently)...",
-		})
-		
-		timingResult, err := c.optimizedController.InsertLudicrousSpeed(
-			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
-		)
-		if err != nil {
-			c.updateLoadTestError(ctx, loadTest, "Ludicrous insertion failed", err)
-			c.wsManager.SendLoadTestError(testID, "Ludicrous insertion failed: "+err.Error())
-			return
-		}
-		
-		// Update load test with completion data (with actual parse time from ludicrous method)
-		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
-		insertTime := timingResult.InsertTime
-		parseTime := timingResult.ParseTime
-		totalTime := parseTime + insertTime
-		
-		loadTest.CSVGenTime = &csvGenTime
-		loadTest.ParseTime = &parseTime
-		loadTest.InsertTime = &insertTime
-		loadTest.TotalTime = &totalTime
-		loadTest.Status = "completed"
-		
-		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
-			_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
-		}
-		
-		// Send completion notification
-		c.wsManager.SendLoadTestComplete(testID, map[string]any{
-			"id":           loadTest.ID.String(),
-			"rows":         loadTest.Rows,
-			"columns":      loadTest.Columns,
-			"dateColumns":  loadTest.DateColumns,
-			"method":       loadTest.Method,
-			"status":       "completed",
-			"csvGenTime":   csvGenTime,
-			"parseTime":    parseTime,
-			"insertTime":   insertTime,
-			"totalTime":    totalTime,
-		})
-		
-		log.Info("ludicrous load test completed successfully", 
-			"loadTestId", loadTest.ID,
-			"totalTime", totalTime,
-			"method", loadTest.Method)
-		return
-	}
 	
 	if loadTest.Method == "plaid" {
 		// Go directly to plaid COPY streaming insertion
@@ -396,25 +297,18 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			"message":          "Starting Plaid PostgreSQL COPY streaming insertion...",
 		})
 		
-		timingResult, err := c.optimizedController.InsertPlaidCopy(
-			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
-		)
+		timingResult, err := c.plaidController.RunPlaidCopy(ctx, csvPath, loadTest.ID, loadTest.Rows)
 		if err != nil {
 			c.updateLoadTestError(ctx, loadTest, "Plaid COPY insertion failed", err)
 			c.wsManager.SendLoadTestError(testID, "Plaid COPY insertion failed: "+err.Error())
 			return
 		}
 		
-		// Update load test with completion data (with actual parse time from plaid method)
-		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
-		insertTime := timingResult.InsertTime
-		parseTime := timingResult.ParseTime
-		totalTime := parseTime + insertTime
-		
+		// Update load test with completion data
 		loadTest.CSVGenTime = &csvGenTime
-		loadTest.ParseTime = &parseTime
-		loadTest.InsertTime = &insertTime
-		loadTest.TotalTime = &totalTime
+		loadTest.ParseTime = &timingResult.ParseTime
+		loadTest.InsertTime = &timingResult.InsertTime
+		loadTest.TotalTime = &timingResult.TotalTime
 		loadTest.Status = "completed"
 		
 		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
@@ -430,14 +324,14 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 			"method":       loadTest.Method,
 			"status":       "completed",
 			"csvGenTime":   csvGenTime,
-			"parseTime":    parseTime,
-			"insertTime":   insertTime,
-			"totalTime":    totalTime,
+			"parseTime":    timingResult.ParseTime,
+			"insertTime":   timingResult.InsertTime,
+			"totalTime":    timingResult.TotalTime,
 		})
 		
 		log.Info("plaid load test completed successfully", 
 			"loadTestId", loadTest.ID,
-			"totalTime", totalTime,
+			"totalTime", timingResult.TotalTime,
 			"method", loadTest.Method)
 		return
 	}
@@ -937,8 +831,8 @@ func (c *LoadTestController) parseAndValidateCSVWithProgress(csvPath string, loa
 		
 		// Create TestData record
 		data := &TestData{
-			BaseUUIDModel: BaseUUIDModel{ID: uuid.New()},
-			LoadTestID:    loadTest.ID,
+			ID:         uuid.New(),
+			LoadTestID: loadTest.ID,
 		}
 		
 		// Parse and validate the row
@@ -1072,19 +966,9 @@ func (c *LoadTestController) setDateColumnValue(data *TestData, columnName, valu
 	case "end_date":
 		data.EndDate = valuePtr
 	case "created_at":
-		if valuePtr != nil {
-			t, err := time.Parse(time.RFC3339, *valuePtr)
-			if err == nil {
-				data.CreatedAt = t
-			}
-		}
+		// CreatedAt field removed with BaseModel - ignoring this column
 	case "updated_at":
-		if valuePtr != nil {
-			t, err := time.Parse(time.RFC3339, *valuePtr)
-			if err == nil {
-				data.UpdatedAt = t
-			}
-		}
+		// UpdatedAt field removed with BaseModel - ignoring this column
 	default:
 		return fmt.Errorf("unknown date column: %s", columnName)
 	}

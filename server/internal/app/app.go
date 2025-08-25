@@ -11,7 +11,7 @@ import (
 	"server/internal/websockets"
 
 	userController "server/internal/controllers/users"
-	loadTestController "server/internal/controllers"
+	"server/internal/controllers"
 )
 
 type App struct {
@@ -31,7 +31,10 @@ type App struct {
 
 	// Controllers
 	UserController *userController.UserController
-	LoadTestController *loadTestController.LoadTestController
+	LoadTestController *controllers.LoadTestController
+	OptimizedOnlyController *controllers.OptimizedOnlyController
+	LudicrousOnlyController *controllers.LudicrousOnlyController
+	PlaidController *controllers.PlaidController
 }
 
 func New() (*App, error) {
@@ -65,7 +68,13 @@ func New() (*App, error) {
 	// Initialize controllers with repositories and services
 	middleware := middleware.New(db, eventBus, config, userRepo)
 	userController := userController.New(eventBus, userRepo, config)
-	loadTestController := loadTestController.NewLoadTestController(loadTestRepo, testDataRepo, db, websocket)
+	plaidController, err := controllers.NewPlaidController(config, websocket)
+	if err != nil {
+		return &App{}, log.Err("failed to create plaid controller", err)
+	}
+	loadTestController := controllers.NewLoadTestController(loadTestRepo, testDataRepo, db, websocket, config, plaidController)
+	optimizedOnlyController := controllers.NewOptimizedOnlyController(loadTestRepo, testDataRepo, db, websocket, config)
+	ludicrousOnlyController := controllers.NewLudicrousOnlyController(loadTestRepo, testDataRepo, db, websocket, config)
 
 	app := &App{
 		Database:           db,
@@ -77,6 +86,9 @@ func New() (*App, error) {
 		TestDataRepo:       testDataRepo,
 		UserController:     userController,
 		LoadTestController: loadTestController,
+		OptimizedOnlyController: optimizedOnlyController,
+		LudicrousOnlyController: ludicrousOnlyController,
+		PlaidController:    plaidController,
 		Websocket:          websocket,
 		EventBus:           eventBus,
 	}
@@ -104,6 +116,9 @@ func (a *App) validate() error {
 		a.TransactionService,
 		a.UserController,
 		a.LoadTestController,
+		a.OptimizedOnlyController,
+		a.LudicrousOnlyController,
+		a.PlaidController,
 		a.Middleware,
 		a.UserRepo,
 		a.LoadTestRepo,
@@ -122,6 +137,12 @@ func (a *App) validate() error {
 func (a *App) Close() (err error) {
 	if a.EventBus != nil {
 		if closeErr := a.EventBus.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}
+
+	if a.PlaidController != nil {
+		if closeErr := a.PlaidController.Close(); closeErr != nil {
 			err = closeErr
 		}
 	}
