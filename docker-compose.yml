@@ -17,6 +17,7 @@ services:
       - GENERAL_VERSION=${GENERAL_VERSION}
       - SERVER_PORT=${SERVER_PORT:-8288}
       - DB_PATH=${DB_PATH}
+      - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
