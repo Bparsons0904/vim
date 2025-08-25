@@ -195,7 +195,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                   <p>Single row inserts - slower but simple</p>
                 </div>
                 <div class={styles.raceTrack}>
-                  <div 
+                  <div
                     class={`${styles.speedIcon} ${
                       isRacing() ? styles.raceSpeed1 : ""
                     }`}
@@ -227,7 +227,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                   <p>Batch inserts with GORM - faster</p>
                 </div>
                 <div class={styles.raceTrack}>
-                  <div 
+                  <div
                     class={`${styles.speedIcon} ${
                       isRacing() ? styles.raceSpeed2 : ""
                     }`}
@@ -252,14 +252,16 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                   <div class={styles.methodHeader}>
                     <div
                       class={styles.methodColorIndicator}
-                      style={{ "background-color": getMethodColor("optimized") }}
+                      style={{
+                        "background-color": getMethodColor("optimized"),
+                      }}
                     />
                     <strong>Optimized</strong>
                   </div>
                   <p>Streaming pipeline with concurrent workers</p>
                 </div>
                 <div class={styles.raceTrack}>
-                  <div 
+                  <div
                     class={`${styles.speedIcon} ${
                       isRacing() ? styles.raceSpeed3 : ""
                     }`}
@@ -284,14 +286,16 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                   <div class={styles.methodHeader}>
                     <div
                       class={styles.methodColorIndicator}
-                      style={{ "background-color": getMethodColor("ludicrous") }}
+                      style={{
+                        "background-color": getMethodColor("ludicrous"),
+                      }}
                     />
                     <strong>Ludicrous Speed</strong>
                   </div>
                   <p>Raw SQL with minimal overhead - insanely fast</p>
                 </div>
                 <div class={styles.raceTrack}>
-                  <div 
+                  <div
                     class={`${styles.speedIcon} ${
                       isRacing() ? styles.raceSpeed4 : ""
                     }`}
@@ -323,7 +327,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                   <p>PostgreSQL Streaming - ultimate performance</p>
                 </div>
                 <div class={styles.raceTrack}>
-                  <div 
+                  <div
                     class={`${styles.speedIcon} ${
                       isRacing() ? styles.raceSpeed5 : ""
                     }`}
@@ -355,7 +359,7 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                     : method() === "ludicrous"
                       ? "Ludicrous Speed"
                       : method() === "plaid"
-                        ? "Plaid (COPY)"
+                        ? "Plaid Speed"
                         : "Brute Force"}
               </span>
             </div>
