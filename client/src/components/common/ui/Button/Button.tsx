@@ -1,5 +1,6 @@
 import { Component, JSX } from "solid-js";
 import styles from "./Button.module.scss";
+import clsx from "clsx";
 
 export type ButtonVariant = "primary" | "secondary" | "tertiary" | "danger" | "gradient" | "ghost" | "warning";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -16,12 +17,14 @@ interface ButtonProps {
 }
 
 export const Button: Component<ButtonProps> = (props) => {
-  const variant = props.variant || "primary";
-  const size = props.size || "md";
-
   return (
     <button
-      class={`${styles.button} ${styles[variant]} ${styles[size]} ${props.class || props.className || ""}`}
+      class={clsx(
+        styles.button,
+        styles[props.variant || "primary"],
+        styles[props.size || "md"],
+        props.class || props.className
+      )}
       type={props.type || "button"}
       disabled={props.disabled}
       onClick={props.onClick}

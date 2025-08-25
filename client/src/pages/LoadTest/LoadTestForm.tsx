@@ -1,6 +1,5 @@
 import { Component, createSignal, For } from "solid-js";
 import { Button } from "@components/common/ui/Button/Button";
-import { TextInput } from "@components/common/forms/TextInput/TextInput";
 import { Card } from "@components/common/ui/Card/Card";
 import styles from "./LoadTestForm.module.scss";
 import { LoadTestConfig } from "./LoadTest";
@@ -19,6 +18,8 @@ const ROW_PRESETS = [
   { label: "1M", value: 1000000 },
   { label: "5M", value: 5000000 },
   { label: "10M", value: 10000000 },
+  { label: "50M", value: 50000000 },
+  { label: "100M", value: 100000000 },
 ];
 
 export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
@@ -44,23 +45,23 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
 
   const getMethodColor = (methodValue: string): string => {
     switch (methodValue) {
-      case 'brute_force':
-        return '#f39c12'; // Orange/yellow for warning
-      case 'batched':
-        return '#3498db'; // Blue for info
-      case 'optimized':
-        return '#27ae60'; // Green for success
-      case 'ludicrous':
-        return '#e74c3c'; // Red for primary/intense
-      case 'plaid':
-        return '#6c5ce7'; // Purple for Plaid
+      case "brute_force":
+        return "#f39c12"; // Orange/yellow for warning
+      case "batched":
+        return "#3498db"; // Blue for info
+      case "optimized":
+        return "#27ae60"; // Green for success
+      case "ludicrous":
+        return "#e74c3c"; // Red for primary/intense
+      case "plaid":
+        return "#6c5ce7"; // Purple for Plaid
       default:
-        return '#95a5a6'; // Gray for unknown
+        return "#95a5a6"; // Gray for unknown
     }
   };
 
   const getEstimatedTime = () => {
-    let rowsPerSecond;
+    let rowsPerSecond: number;
     switch (method()) {
       case "plaid":
         rowsPerSecond = 200000; // PostgreSQL COPY should be the fastest
@@ -122,14 +123,22 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
         <div class={styles.section}>
           <h3>Insertion Method</h3>
           <div class={styles.methodOptions}>
-            <div class={`${styles.methodOption} ${method() === "brute_force" ? styles.selected : ""}`}
-                 style={method() === "brute_force" ? {"border-color": getMethodColor("brute_force")} : {}}
-                 onClick={() => !props.disabled && setMethod("brute_force")}>
+            <div
+              class={`${styles.methodOption} ${method() === "brute_force" ? styles.selected : ""}`}
+              style={
+                method() === "brute_force"
+                  ? { "border-color": getMethodColor("brute_force") }
+                  : {}
+              }
+              onClick={() => !props.disabled && setMethod("brute_force")}
+            >
               <div class={styles.methodContent}>
                 <div class={styles.methodHeader}>
-                  <div 
+                  <div
                     class={styles.methodColorIndicator}
-                    style={{"background-color": getMethodColor("brute_force")}}
+                    style={{
+                      "background-color": getMethodColor("brute_force"),
+                    }}
                   />
                   <strong>Brute Force</strong>
                 </div>
@@ -137,14 +146,20 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               </div>
             </div>
 
-            <div class={`${styles.methodOption} ${method() === "batched" ? styles.selected : ""}`}
-                 style={method() === "batched" ? {"border-color": getMethodColor("batched")} : {}}
-                 onClick={() => !props.disabled && setMethod("batched")}>
+            <div
+              class={`${styles.methodOption} ${method() === "batched" ? styles.selected : ""}`}
+              style={
+                method() === "batched"
+                  ? { "border-color": getMethodColor("batched") }
+                  : {}
+              }
+              onClick={() => !props.disabled && setMethod("batched")}
+            >
               <div class={styles.methodContent}>
                 <div class={styles.methodHeader}>
-                  <div 
+                  <div
                     class={styles.methodColorIndicator}
-                    style={{"background-color": getMethodColor("batched")}}
+                    style={{ "background-color": getMethodColor("batched") }}
                   />
                   <strong>Batched</strong>
                 </div>
@@ -152,14 +167,20 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               </div>
             </div>
 
-            <div class={`${styles.methodOption} ${method() === "optimized" ? styles.selected : ""}`}
-                 style={method() === "optimized" ? {"border-color": getMethodColor("optimized")} : {}}
-                 onClick={() => !props.disabled && setMethod("optimized")}>
+            <div
+              class={`${styles.methodOption} ${method() === "optimized" ? styles.selected : ""}`}
+              style={
+                method() === "optimized"
+                  ? { "border-color": getMethodColor("optimized") }
+                  : {}
+              }
+              onClick={() => !props.disabled && setMethod("optimized")}
+            >
               <div class={styles.methodContent}>
                 <div class={styles.methodHeader}>
-                  <div 
+                  <div
                     class={styles.methodColorIndicator}
-                    style={{"background-color": getMethodColor("optimized")}}
+                    style={{ "background-color": getMethodColor("optimized") }}
                   />
                   <strong>Optimized</strong>
                 </div>
@@ -167,14 +188,20 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               </div>
             </div>
 
-            <div class={`${styles.methodOption} ${method() === "ludicrous" ? styles.selected : ""}`}
-                 style={method() === "ludicrous" ? {"border-color": getMethodColor("ludicrous")} : {}}
-                 onClick={() => !props.disabled && setMethod("ludicrous")}>
+            <div
+              class={`${styles.methodOption} ${method() === "ludicrous" ? styles.selected : ""}`}
+              style={
+                method() === "ludicrous"
+                  ? { "border-color": getMethodColor("ludicrous") }
+                  : {}
+              }
+              onClick={() => !props.disabled && setMethod("ludicrous")}
+            >
               <div class={styles.methodContent}>
                 <div class={styles.methodHeader}>
-                  <div 
+                  <div
                     class={styles.methodColorIndicator}
-                    style={{"background-color": getMethodColor("ludicrous")}}
+                    style={{ "background-color": getMethodColor("ludicrous") }}
                   />
                   <strong>Ludicrous Speed</strong>
                 </div>
@@ -182,14 +209,20 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               </div>
             </div>
 
-            <div class={`${styles.methodOption} ${method() === "plaid" ? styles.selected : ""}`}
-                 style={method() === "plaid" ? {"border-color": getMethodColor("plaid")} : {}}
-                 onClick={() => !props.disabled && setMethod("plaid")}>
+            <div
+              class={`${styles.methodOption} ${method() === "plaid" ? styles.selected : ""}`}
+              style={
+                method() === "plaid"
+                  ? { "border-color": getMethodColor("plaid") }
+                  : {}
+              }
+              onClick={() => !props.disabled && setMethod("plaid")}
+            >
               <div class={styles.methodContent}>
                 <div class={styles.methodHeader}>
-                  <div 
+                  <div
                     class={styles.methodColorIndicator}
-                    style={{"background-color": getMethodColor("plaid")}}
+                    style={{ "background-color": getMethodColor("plaid") }}
                   />
                   <strong>Plaid Speed</strong>
                 </div>
@@ -204,11 +237,14 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
           <h3>Test Summary</h3>
           <div class={styles.summaryGrid}>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Rows: {rows().toLocaleString()}</span>
+              <span class={styles.summaryLabel}>
+                Rows: {rows().toLocaleString()}
+              </span>
             </div>
             <div class={styles.summaryItem}>
               <span class={styles.summaryLabel}>
-                Method: {method() === "batched"
+                Method:{" "}
+                {method() === "batched"
                   ? "Batched"
                   : method() === "optimized"
                     ? "Optimized"
@@ -220,7 +256,9 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               </span>
             </div>
             <div class={styles.summaryItem}>
-              <span class={styles.summaryLabel}>Est. Time: {getEstimatedTime()}</span>
+              <span class={styles.summaryLabel}>
+                Est. Time: {getEstimatedTime()}
+              </span>
             </div>
           </div>
         </div>
