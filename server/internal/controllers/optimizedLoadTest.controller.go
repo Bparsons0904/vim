@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
 )
@@ -162,6 +163,94 @@ func (c *OptimizedLoadTestController) InsertLudicrousSpeed(
 		InsertMethod:  InsertMethodRawSQL,
 	}
 	return c.insertWithConfig(ctx, csvPath, loadTestID, totalRecords, startTime, testID, config)
+}
+
+// InsertPlaidCopy performs streaming CSV parsing with PostgreSQL COPY FROM STDIN for maximum performance
+func (c *OptimizedLoadTestController) InsertPlaidCopy(
+	ctx context.Context,
+	csvPath string,
+	loadTestID uuid.UUID,
+	totalRecords int,
+	startTime time.Time,
+	testID string,
+) (TimingResult, error) {
+	c.log.Info("Starting Plaid COPY insertion",
+		"totalRecords", totalRecords,
+		"method", "PostgreSQL COPY FROM STDIN")
+
+	// Open CSV file
+	file, err := os.Open(csvPath)
+	if err != nil {
+		return TimingResult{}, fmt.Errorf("failed to open CSV file: %w", err)
+	}
+	defer file.Close()
+
+	// Initialize progress tracking
+	progress := &Progress{
+		TotalRecords:     totalRecords,
+		TotalBatches:     1, // COPY is essentially one big batch
+		StartTime:        startTime,
+		RecordsProcessed: 0,
+		BatchesProcessed: 0,
+	}
+
+	// Start progress monitoring goroutine
+	progressDone := make(chan bool)
+	go c.monitorPlaidCopyProgress(progress, testID, progressDone)
+
+	// Start CSV parsing and COPY operation
+	parseStartTime := time.Now()
+	insertTime, err := c.executeStreamingCopy(ctx, file, loadTestID, progress, testID)
+	if err != nil {
+		close(progressDone)
+		return TimingResult{}, fmt.Errorf("streaming COPY failed: %w", err)
+	}
+	parseTime := time.Since(parseStartTime)
+
+	// Stop progress monitoring
+	close(progressDone)
+
+	// Log final timing breakdown
+	progress.mu.RLock()
+	finalProcessed := progress.RecordsProcessed
+	progress.mu.RUnlock()
+
+	var rowsPerSecond int
+	if insertTime > 0 {
+		rowsPerSecond = int(float64(finalProcessed) / (float64(insertTime) / 1000))
+	}
+
+	c.log.Info("Plaid COPY insertion timing breakdown",
+		"totalTime", time.Since(startTime),
+		"parseTime", parseTime,
+		"insertTime", time.Duration(insertTime)*time.Millisecond,
+		"finalProcessed", finalProcessed,
+		"rowsPerSecond", rowsPerSecond)
+
+	// Send final progress update
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":           "insertion",
+		"overallProgress": 100,
+		"phaseProgress":   100,
+		"currentPhase":    "Plaid COPY Complete",
+		"rowsProcessed":   progress.RecordsProcessed,
+		"rowsPerSecond":   rowsPerSecond,
+		"eta":             "Done",
+		"message": fmt.Sprintf(
+			"Successfully inserted %d records using Plaid PostgreSQL COPY",
+			progress.RecordsProcessed,
+		),
+	})
+
+	c.log.Info("Plaid COPY insertion completed",
+		"totalRecords", progress.RecordsProcessed,
+		"insertTimeMs", insertTime,
+		"rowsPerSecond", rowsPerSecond)
+
+	return TimingResult{
+		ParseTime:  int(parseTime.Milliseconds()),
+		InsertTime: insertTime,
+	}, nil
 }
 
 // insertWithConfig performs the actual insertion logic with given configuration
@@ -467,11 +556,10 @@ func (c *OptimizedLoadTestController) parseCSVStreaming(
 		testData := testDataPool.Get().(*TestData)
 		*testData = TestData{}
 
-		// Initialize base fields
-		nowStr := time.Now().Format(time.RFC3339)
+		now := time.Now()
 		testData.ID = uuid.New()
-		testData.CreatedAt = &nowStr
-		testData.UpdatedAt = &nowStr
+		testData.CreatedAt = now
+		testData.UpdatedAt = now
 		testData.LoadTestID = loadTestID
 
 		// Use the setters to populate the struct
@@ -647,8 +735,8 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQL(
 
 		args = append(args,
 			record.ID,
-			getStringValue(record.CreatedAt),
-			getStringValue(record.UpdatedAt),
+			record.CreatedAt,
+			record.UpdatedAt,
 			nil, // deleted_at is always NULL for new records
 			record.LoadTestID,
 			getStringValue(record.BirthDate),
@@ -753,8 +841,8 @@ func (c *OptimizedLoadTestController) insertBatchWithRawSQLAndMultipleConnection
 
 		args = append(args,
 			record.ID,
-			getStringValue(record.CreatedAt),
-			getStringValue(record.UpdatedAt),
+			record.CreatedAt,
+			record.UpdatedAt,
 			nil, // deleted_at is always NULL for new records
 			record.LoadTestID,
 			getStringValue(record.BirthDate),
@@ -867,7 +955,6 @@ func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context
 	queries := []string{
 		"ALTER TABLE test_data DROP CONSTRAINT IF EXISTS test_data_pkey",
 		"DROP INDEX IF EXISTS idx_test_data_load_test_id",
-		"DROP INDEX IF EXISTS idx_test_data_deleted_at",
 	}
 
 	for _, query := range queries {
@@ -878,6 +965,219 @@ func (c *OptimizedLoadTestController) dropIndexesTemporarily(ctx context.Context
 	}
 
 	return nil
+}
+
+// executeStreamingCopy performs the actual PostgreSQL COPY FROM STDIN operation with streaming
+func (c *OptimizedLoadTestController) executeStreamingCopy(
+	ctx context.Context,
+	file *os.File,
+	loadTestID uuid.UUID,
+	progress *Progress,
+	testID string,
+) (int, error) {
+	startTime := time.Now()
+
+	gormDB := c.db.SQLWithContext(ctx)
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get underlying SQL DB: %w", err)
+	}
+
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	// The column list for COPY is now shorter.
+	// We let the database handle id, created_at, updated_at, and deleted_at.
+	copyColumns := []string{
+		"load_test_id", "birth_date", "start_date", "end_date",
+		"first_name", "last_name", "email", "phone", "address_line1", "address_line2",
+		"city", "state", "zip_code", "country", "social_security_no",
+		"employer", "job_title", "department", "salary",
+		"insurance_plan_id", "insurance_carrier", "policy_number",
+		"group_number", "member_id",
+	}
+	stmt, err := tx.PrepareContext(ctx, pq.CopyIn("test_data", copyColumns...))
+	if err != nil {
+		return 0, fmt.Errorf("failed to prepare COPY statement: %w", err)
+	}
+	defer stmt.Close()
+
+	reader := csv.NewReader(file)
+	headers, err := reader.Read()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read CSV headers: %w", err)
+	}
+
+	headerIndex := make(map[string]int, len(headers))
+	for i, h := range headers {
+		headerIndex[h] = i
+	}
+
+	// Pre-allocate the values slice to reduce allocations in the loop.
+	values := make([]interface{}, len(copyColumns))
+
+	rowCount := 0
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("failed to read CSV row: %w", err)
+		}
+
+		// This is the new, optimized transformation logic.
+		// It populates the `values` slice directly.
+		loadTestIDStr := loadTestID.String()
+		
+		getValue := func(key string) string {
+			if idx, ok := headerIndex[key]; ok && idx < len(record) {
+				return record[idx]
+			}
+			return ""
+		}
+
+		// This is a bit verbose, but it's fast. No map creation per row.
+		values[0] = loadTestIDStr
+		values[1] = c.getNormalizedDateOrNull(getValue("birth_date"))
+		values[2] = c.getNormalizedDateOrNull(getValue("start_date"))
+		values[3] = c.getNormalizedDateOrNull(getValue("end_date"))
+		values[4] = c.getValueOrNull(getValue("first_name"))
+		values[5] = c.getValueOrNull(getValue("last_name"))
+		values[6] = c.getValueOrNull(getValue("email"))
+		values[7] = c.getValueOrNull(getValue("phone"))
+		values[8] = c.getValueOrNull(getValue("address_line_1"))
+		values[9] = c.getValueOrNull(getValue("address_line_2"))
+		values[10] = c.getValueOrNull(getValue("city"))
+		values[11] = c.getValueOrNull(getValue("state"))
+		values[12] = c.getValueOrNull(getValue("zip_code"))
+		values[13] = c.getValueOrNull(getValue("country"))
+		values[14] = c.getValueOrNull(getValue("social_security_no"))
+		values[15] = c.getValueOrNull(getValue("employer"))
+		values[16] = c.getValueOrNull(getValue("job_title"))
+		values[17] = c.getValueOrNull(getValue("department"))
+		values[18] = c.getValueOrNull(getValue("salary"))
+		values[19] = c.getValueOrNull(getValue("insurance_plan_id"))
+		values[20] = c.getValueOrNull(getValue("insurance_carrier"))
+		values[21] = c.getValueOrNull(getValue("policy_number"))
+		values[22] = c.getValueOrNull(getValue("group_number"))
+		values[23] = c.getValueOrNull(getValue("member_id"))
+
+		_, err = stmt.Exec(values...)
+		if err != nil {
+			return 0, fmt.Errorf("failed to execute COPY for record %d: %w", rowCount+1, err)
+		}
+
+		rowCount++
+		if rowCount%10000 == 0 {
+			progress.mu.Lock()
+			progress.RecordsProcessed = rowCount
+			progress.mu.Unlock()
+			c.log.Debug("COPY progress", "recordsProcessed", rowCount)
+		}
+	}
+
+	// Final progress update
+	progress.mu.Lock()
+	progress.RecordsProcessed = rowCount
+	progress.mu.Unlock()
+
+	_, err = stmt.Exec()
+	if err != nil {
+		return 0, fmt.Errorf("failed to finalize COPY operation: %w", err)
+	}
+
+	insertTime := int(time.Since(startTime).Milliseconds())
+	c.log.Info("COPY FROM STDIN completed", "recordsProcessed", rowCount, "insertTimeMs", insertTime)
+	return insertTime, nil
+}
+
+// getValueOrNull safely gets a value from the map or returns nil for empty values
+func (c *OptimizedLoadTestController) getValueOrNull(value string) interface{} {
+	if value != "" {
+		return value
+	}
+	return nil
+}
+
+// getNormalizedDateOrNull validates and normalizes a date string, or returns nil
+func (c *OptimizedLoadTestController) getNormalizedDateOrNull(value string) interface{} {
+	if value != "" {
+		result := c.dateUtils.GetValidator().ValidateAndConvert(value)
+		if result.IsValid {
+			return result.ParsedTime.Format("2006-01-02")
+		}
+	}
+	return nil
+}
+
+// monitorPlaidCopyProgress sends real-time progress updates for COPY operation
+func (c *OptimizedLoadTestController) monitorPlaidCopyProgress(
+	progress *Progress,
+	testID string,
+	done <-chan bool,
+) {
+	ticker := time.NewTicker(2 * time.Second) // Update every 2 seconds for COPY
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			progress.mu.RLock()
+
+			elapsed := time.Since(progress.StartTime)
+			overallProgress := float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
+			phaseProgress := overallProgress * 100
+
+			// Calculate ETA
+			var eta string
+			if progress.RecordsProcessed > 0 && overallProgress > 0 {
+				totalEstimated := time.Duration(float64(elapsed) / overallProgress)
+				remaining := totalEstimated - elapsed
+				if remaining > 0 {
+					eta = fmt.Sprintf("%ds", int(remaining.Seconds()))
+				} else {
+					eta = "Almost done"
+				}
+			} else {
+				eta = "Calculating..."
+			}
+
+			// Calculate rows per second
+			rowsPerSecond := 0
+			if elapsed.Seconds() > 0 {
+				rowsPerSecond = int(float64(progress.RecordsProcessed) / elapsed.Seconds())
+			}
+
+			progress.mu.RUnlock()
+
+			c.wsManager.SendLoadTestProgress(testID, map[string]any{
+				"phase":           "insertion",
+				"overallProgress": 85 + (15 * overallProgress), // Scale to 85-100%
+				"phaseProgress":   phaseProgress,
+				"currentPhase":    "Plaid COPY Insertion",
+				"rowsProcessed":   progress.RecordsProcessed,
+				"rowsPerSecond":   rowsPerSecond,
+				"eta":             eta,
+				"message": fmt.Sprintf(
+					"PostgreSQL COPY processing: %d/%d records",
+					progress.RecordsProcessed,
+					progress.TotalRecords,
+				),
+			})
+		}
+	}
 }
 
 // recreateIndexes recreates the indexes after bulk insert

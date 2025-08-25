@@ -23,7 +23,7 @@ const ROW_PRESETS = [
 
 export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const [rows, setRows] = createSignal(10000);
-  const [method, setMethod] = createSignal<'brute_force' | 'batched' | 'optimized' | 'ludicrous'>('batched');
+  const [method, setMethod] = createSignal<'brute_force' | 'batched' | 'optimized' | 'ludicrous' | 'plaid'>('batched');
 
   const handlePresetClick = (value: number) => {
     setRows(value);
@@ -43,6 +43,9 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
   const getEstimatedTime = () => {
     let rowsPerSecond;
     switch (method()) {
+      case 'plaid':
+        rowsPerSecond = 200000; // PostgreSQL COPY should be the fastest
+        break;
       case 'ludicrous':
         rowsPerSecond = 160000; // Double the optimized performance
         break;
@@ -169,6 +172,21 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
                 <p>Raw SQL with minimal overhead - insanely fast</p>
               </div>
             </label>
+            
+            <label class={styles.radioOption}>
+              <input
+                type="radio"
+                name="method"
+                value="plaid"
+                checked={method() === 'plaid'}
+                onChange={() => setMethod('plaid')}
+                disabled={props.disabled}
+              />
+              <div class={styles.radioContent}>
+                <strong>Plaid (COPY)</strong>
+                <p>PostgreSQL COPY FROM STDIN - ultimate performance</p>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -185,7 +203,8 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
               <span class={styles.summaryValue}>
                 {method() === 'batched' ? 'Batched' : 
                  method() === 'optimized' ? 'Optimized' : 
-                 method() === 'ludicrous' ? 'Ludicrous Speed' : 'Brute Force'}
+                 method() === 'ludicrous' ? 'Ludicrous Speed' :
+                 method() === 'plaid' ? 'Plaid (COPY)' : 'Brute Force'}
               </span>
             </div>
             <div class={styles.summaryItem}>

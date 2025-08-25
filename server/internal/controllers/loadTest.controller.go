@@ -264,7 +264,7 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		return
 	}
 
-	// Handle optimized and ludicrous methods differently - bypass parsing and use streaming pipeline
+	// Handle optimized, ludicrous, and plaid methods differently - bypass parsing and use streaming pipeline
 	if loadTest.Method == "optimized" {
 		// Go directly to optimized streaming insertion
 		c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -377,6 +377,65 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		})
 		
 		log.Info("ludicrous load test completed successfully", 
+			"loadTestId", loadTest.ID,
+			"totalTime", totalTime,
+			"method", loadTest.Method)
+		return
+	}
+	
+	if loadTest.Method == "plaid" {
+		// Go directly to plaid COPY streaming insertion
+		c.wsManager.SendLoadTestProgress(testID, map[string]any{
+			"phase":            "insertion",
+			"overallProgress":  25,
+			"phaseProgress":    0,
+			"currentPhase":     "Plaid COPY Insertion",
+			"rowsProcessed":    0,
+			"rowsPerSecond":    0,
+			"eta":              "Calculating...",
+			"message":          "Starting Plaid PostgreSQL COPY streaming insertion...",
+		})
+		
+		timingResult, err := c.optimizedController.InsertPlaidCopy(
+			ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID,
+		)
+		if err != nil {
+			c.updateLoadTestError(ctx, loadTest, "Plaid COPY insertion failed", err)
+			c.wsManager.SendLoadTestError(testID, "Plaid COPY insertion failed: "+err.Error())
+			return
+		}
+		
+		// Update load test with completion data (with actual parse time from plaid method)
+		// Note: totalTime excludes CSV generation as that's test setup, not performance measurement
+		insertTime := timingResult.InsertTime
+		parseTime := timingResult.ParseTime
+		totalTime := parseTime + insertTime
+		
+		loadTest.CSVGenTime = &csvGenTime
+		loadTest.ParseTime = &parseTime
+		loadTest.InsertTime = &insertTime
+		loadTest.TotalTime = &totalTime
+		loadTest.Status = "completed"
+		
+		if err := c.loadTestRepo.Update(ctx, loadTest); err != nil {
+			_ = log.Err("failed to update completed load test", err, "loadTestId", loadTest.ID)
+		}
+		
+		// Send completion notification
+		c.wsManager.SendLoadTestComplete(testID, map[string]any{
+			"id":           loadTest.ID.String(),
+			"rows":         loadTest.Rows,
+			"columns":      loadTest.Columns,
+			"dateColumns":  loadTest.DateColumns,
+			"method":       loadTest.Method,
+			"status":       "completed",
+			"csvGenTime":   csvGenTime,
+			"parseTime":    parseTime,
+			"insertTime":   insertTime,
+			"totalTime":    totalTime,
+		})
+		
+		log.Info("plaid load test completed successfully", 
 			"loadTestId", loadTest.ID,
 			"totalTime", totalTime,
 			"method", loadTest.Method)
@@ -1013,9 +1072,19 @@ func (c *LoadTestController) setDateColumnValue(data *TestData, columnName, valu
 	case "end_date":
 		data.EndDate = valuePtr
 	case "created_at":
-		data.CreatedAt = valuePtr
+		if valuePtr != nil {
+			t, err := time.Parse(time.RFC3339, *valuePtr)
+			if err == nil {
+				data.CreatedAt = t
+			}
+		}
 	case "updated_at":
-		data.UpdatedAt = valuePtr
+		if valuePtr != nil {
+			t, err := time.Parse(time.RFC3339, *valuePtr)
+			if err == nil {
+				data.UpdatedAt = t
+			}
+		}
 	default:
 		return fmt.Errorf("unknown date column: %s", columnName)
 	}
@@ -1099,6 +1168,9 @@ func (c *LoadTestController) insertTestDataWithProgress(ctx context.Context, tes
 		return c.insertBruteForceWithProgress(ctx, testData, startTime, testID)
 	case "batched":
 		return c.insertBatchedWithProgress(ctx, testData, startTime, testID)
+	case "plaid":
+		// Plaid method should not reach this point as it uses streaming insertion
+		return 0, fmt.Errorf("plaid method should use streaming insertion, not traditional flow")
 	default:
 		return 0, fmt.Errorf("unknown insertion method: %s", method)
 	}

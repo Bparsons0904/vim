@@ -9,8 +9,6 @@ type TestData struct {
 	BirthDate     *string `gorm:"type:varchar(255)"               json:"birth_date"`     // Normalized RFC3339: "2006-01-02T15:04:05Z"
 	StartDate     *string `gorm:"type:varchar(255)"               json:"start_date"`     // Normalized RFC3339: "2006-01-02T15:04:05Z"
 	EndDate       *string `gorm:"type:varchar(255)"               json:"end_date"`       // Normalized RFC3339: "2006-01-02T15:04:05Z"
-	CreatedAt     *string `gorm:"type:varchar(255)"               json:"created_at"`     // Normalized RFC3339: "2006-01-02T15:04:05Z"
-	UpdatedAt     *string `gorm:"type:varchar(255)"               json:"updated_at"`     // Normalized RFC3339: "2006-01-02T15:04:05Z"
 	// Meaningful columns (20 total for demographics, employment, and insurance data)
 	FirstName        *string `gorm:"type:varchar(255)"               json:"first_name"`
 	LastName         *string `gorm:"type:varchar(255)"               json:"last_name"`
