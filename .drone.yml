@@ -58,7 +58,7 @@ steps:
         from_secret: VITE_ENV
     commands:
       - cd client
-      - docker build -t vim-client:latest 
+      - docker build -t vim-client:latest
         --build-arg VITE_GENERAL_VERSION="$VITE_GENERAL_VERSION"
         --build-arg VITE_API_URL="$VITE_API_URL"
         --build-arg VITE_WS_URL="$VITE_WS_URL"
@@ -80,8 +80,16 @@ steps:
         from_secret: GENERAL_VERSION
       SERVER_PORT:
         from_secret: SERVER_PORT
-      DB_PATH:
-        from_secret: DB_PATH
+      DB_HOST:
+        from_secret: DB_HOST
+      DB_PORT:
+        from_secret: DB_PORT
+      DB_NAME:
+        from_secret: DB_NAME
+      DB_USER:
+        from_secret: DB_USER
+      DB_PASSWORD:
+        from_secret: DB_PASSWORD
       DB_CACHE_ADDRESS:
         from_secret: DB_CACHE_ADDRESS
       DB_CACHE_PORT:
@@ -166,3 +174,4 @@ steps:
 
 depends_on:
   - build
+
