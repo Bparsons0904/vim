@@ -3,6 +3,7 @@ import styles from "./LoadTest.module.scss";
 import { LoadTestForm } from "./LoadTestForm";
 import { ProgressDisplay } from "./ProgressDisplay";
 import { ResultsDashboard } from "./ResultsDashboard";
+import { ProcessInfo } from "./ProcessInfo";
 import {
   useStartLoadTest,
   useLoadTestHistory,
@@ -72,6 +73,8 @@ const LoadTest: Component = () => {
             implementation methods
           </p>
         </header>
+
+        <ProcessInfo />
 
         <div class={styles.content}>
           <div class={styles.leftColumn}>
