@@ -23,6 +23,28 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
     return `${rowsPerSecond.toLocaleString()} rows/sec`;
   };
 
+  const formatTestDate = (createdAt: string): string => {
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    // For older tests, show the actual date
+    return date.toLocaleDateString(undefined, { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'completed':
@@ -64,18 +86,13 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
     }
   };
 
-  // Take only the last 10 tests
-  const recentTests = () => props.tests.slice(0, 10);
+  // Server now returns tests in reverse chronological order (most recent first)
+  const recentTests = () => props.tests;
 
   return (
     <Card class={styles.testHistoryCard}>
       <div class={styles.header}>
         <h2>Recent Test History</h2>
-        <Show when={props.tests.length > 0}>
-          <Button variant="secondary" size="sm">
-            Export Results
-          </Button>
-        </Show>
       </div>
       
       <Show when={props.error}>
@@ -116,7 +133,7 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
                     >
                       {getStatusIcon(test.status)}
                     </span>
-                    Test #{index() + 1}
+                    {formatTestDate(test.createdAt)}
                   </div>
                   <div class={styles.itemMethod}>
                     {getMethodDisplayName(test.method)}
@@ -125,7 +142,6 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
                 
                 <div class={styles.itemDetails}>
                   <span class={styles.detail}>{test.rows.toLocaleString()} rows</span>
-                  <span class={styles.detail}>{test.columns} columns</span>
                   <Show when={test.status === 'completed' && test.totalTime}>
                     <span class={styles.detail}>{formatTime(test.totalTime)}</span>
                     <span class={styles.detail}>{formatRate(test.rows, test.totalTime)}</span>
@@ -141,14 +157,6 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
               </div>
             )}
           </For>
-          
-          <Show when={props.tests.length > 10}>
-            <div class={styles.showMore}>
-              <Button variant="ghost" size="sm">
-                Show {props.tests.length - 10} more tests
-              </Button>
-            </div>
-          </Show>
         </div>
       </Show>
     </Card>

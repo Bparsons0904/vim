@@ -62,22 +62,44 @@
 }
 
 .summariesGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
 .summaryCard {
   padding: 1.25rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-hover);
   border-radius: var(--radius-lg);
-  background: var(--color-background-subtle);
+  background: var(--color-background-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
+  position: relative;
 
   &:hover {
-    background: var(--color-background-hover);
-    border-color: var(--color-border-hover);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  &:not(:last-child) {
+    margin-bottom: 2rem;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -1rem;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(
+        to right,
+        transparent,
+        var(--color-border),
+        var(--color-border),
+        transparent
+      );
+    }
   }
 }
 
@@ -115,16 +137,65 @@
   border: 1px solid var(--color-border);
 }
 
-.metricsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.metricsLayout {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+.primaryMetric {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.primaryLabel {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.primaryValueContainer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.primaryValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.primaryUnit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.secondaryMetrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 1rem;
 }
 
 .metric {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
 }
 
 .metricLabel {
@@ -136,7 +207,7 @@
 }
 
 .metricValue {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 600;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
@@ -145,7 +216,6 @@
 /* Responsive design */
 @media (max-width: 768px) {
   .summariesGrid {
-    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
@@ -159,9 +229,32 @@
     gap: 0.5rem;
   }
 
-  .metricsGrid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  .metricsLayout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .primaryMetric {
+    text-align: center;
+  }
+
+  .primaryValue {
+    font-size: 2rem;
+  }
+
+  .metricValue {
+    font-size: 1.1rem;
+  }
+
+  .secondaryMetrics {
+    flex-direction: row;
+    justify-content: space-around;
+    min-width: auto;
+  }
+
+  .metric {
+    text-align: center;
   }
 }
 
@@ -183,7 +276,15 @@
   }
 
   .metricValue {
-    font-size: 0.9rem;
+    font-size: 1rem;
+  }
+
+  .primaryValue {
+    font-size: 1.75rem;
+  }
+
+  .primaryLabel {
+    font-size: 0.8rem;
   }
 }
 

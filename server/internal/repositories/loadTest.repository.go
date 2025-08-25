@@ -22,6 +22,7 @@ type LoadTestRepository interface {
 	Update(ctx context.Context, loadTest *LoadTest) error
 	Delete(ctx context.Context, id string) error
 	GetAll(ctx context.Context) ([]*LoadTest, error)
+	GetAllForSummary(ctx context.Context) ([]*LoadTest, error)
 	GetByStatus(ctx context.Context, status string) ([]*LoadTest, error)
 }
 
@@ -109,12 +110,24 @@ func (r *loadTestRepository) GetAll(ctx context.Context) ([]*LoadTest, error) {
 	log := r.log.Function("GetAll")
 
 	var loadTests []*LoadTest
-	if err := r.getDB(ctx).Find(&loadTests).Error; err != nil {
+	if err := r.getDB(ctx).Order("created_at DESC").Limit(10).Find(&loadTests).Error; err != nil {
 		return nil, log.Err("failed to get all load tests", err)
 	}
 
 	return loadTests, nil
 }
+
+func (r *loadTestRepository) GetAllForSummary(ctx context.Context) ([]*LoadTest, error) {
+	log := r.log.Function("GetAllForSummary")
+
+	var loadTests []*LoadTest
+	if err := r.getDB(ctx).Order("created_at DESC").Find(&loadTests).Error; err != nil {
+		return nil, log.Err("failed to get all load tests for summary", err)
+	}
+
+	return loadTests, nil
+}
+
 
 func (r *loadTestRepository) GetByStatus(ctx context.Context, status string) ([]*LoadTest, error) {
 	log := r.log.Function("GetByStatus")

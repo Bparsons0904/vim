@@ -4,6 +4,8 @@ import { LoadTestForm } from "./LoadTestForm";
 import { ProgressDisplay } from "./ProgressDisplay";
 import { ResultsDashboard } from "./ResultsDashboard";
 import { useStartLoadTest, useLoadTestHistory } from "@services/api/hooks/loadtest.hooks";
+import { useQueryClient } from "@tanstack/solid-query";
+import { queryKeys } from "@services/api/queryKeys";
 
 export interface LoadTestConfig {
   rows: number;
@@ -22,6 +24,7 @@ export interface LoadTestResult {
   insertTime?: number;
   totalTime?: number;
   errorMessage?: string;
+  createdAt: string;
 }
 
 const LoadTest: Component = () => {
@@ -29,7 +32,8 @@ const LoadTest: Component = () => {
   
   // API hooks
   const startTestMutation = useStartLoadTest();
-  const historyQuery = useLoadTestHistory({ limit: 20 });
+  const historyQuery = useLoadTestHistory();
+  const queryClient = useQueryClient();
 
   const handleStartTest = async (config: LoadTestConfig) => {
     try {
@@ -43,7 +47,14 @@ const LoadTest: Component = () => {
 
   const handleTestComplete = (result: LoadTestResult) => {
     setCurrentTest(result);
-    // History will be automatically updated via query invalidation
+    
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ 
+      queryKey: queryKeys.loadTestHistory() 
+    });
+    queryClient.invalidateQueries({ 
+      queryKey: ['performance-summary'] 
+    });
   };
 
   return (

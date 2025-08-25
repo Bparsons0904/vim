@@ -29,6 +29,8 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
         return 'Optimized';
       case 'ludicrous':
         return 'Ludicrous Speed';
+      case 'plaid':
+        return 'Plaid';
       default:
         return method;
     }
@@ -37,15 +39,17 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
   const getMethodColor = (method: string): string => {
     switch (method) {
       case 'brute_force':
-        return 'var(--color-warning)';
+        return '#f39c12'; // Orange/yellow for warning
       case 'batched':
-        return 'var(--color-info)';
+        return '#3498db'; // Blue for info
       case 'optimized':
-        return 'var(--color-success)';
+        return '#27ae60'; // Green for success
       case 'ludicrous':
-        return 'var(--color-primary)';
+        return '#e74c3c'; // Red for primary/intense
+      case 'plaid':
+        return '#6c5ce7'; // Purple for Plaid
       default:
-        return 'var(--color-text-secondary)';
+        return '#95a5a6'; // Gray for unknown
     }
   };
 
@@ -83,7 +87,7 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
         }
       >
         <div class={styles.summariesGrid}>
-          <For each={props.summaries}>
+          <For each={props.summaries.slice().sort((a, b) => b.avgRowsPerSec - a.avgRowsPerSec)}>
             {(summary) => (
               <div class={styles.summaryCard}>
                 <div class={styles.summaryHeader}>
@@ -99,47 +103,31 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
                   </div>
                 </div>
 
-                <div class={styles.metricsGrid}>
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>Avg Throughput</span>
-                    <span class={styles.metricValue}>
-                      {formatNumber(summary.avgRowsPerSec)} rows/sec
-                    </span>
+                <div class={styles.metricsLayout}>
+                  <div class={styles.primaryMetric}>
+                    <span class={styles.primaryLabel}>Average Throughput</span>
+                    <div class={styles.primaryValueContainer}>
+                      <span class={styles.primaryValue}>
+                        {formatNumber(summary.avgRowsPerSec)}
+                      </span>
+                      <span class={styles.primaryUnit}>rows/sec</span>
+                    </div>
                   </div>
 
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>Max Throughput</span>
-                    <span class={styles.metricValue}>
-                      {formatNumber(summary.maxRowsPerSec)} rows/sec
-                    </span>
-                  </div>
+                  <div class={styles.secondaryMetrics}>
+                    <div class={styles.metric}>
+                      <span class={styles.metricLabel}>Max</span>
+                      <span class={styles.metricValue}>
+                        {formatNumber(summary.maxRowsPerSec)} rows/sec
+                      </span>
+                    </div>
 
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>Min Throughput</span>
-                    <span class={styles.metricValue}>
-                      {formatNumber(summary.minRowsPerSec)} rows/sec
-                    </span>
-                  </div>
-
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>P95 Throughput</span>
-                    <span class={styles.metricValue}>
-                      {formatNumber(summary.p95RowsPerSec)} rows/sec
-                    </span>
-                  </div>
-
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>Avg Total Time</span>
-                    <span class={styles.metricValue}>
-                      {formatTime(summary.avgTotalTime)}
-                    </span>
-                  </div>
-
-                  <div class={styles.metric}>
-                    <span class={styles.metricLabel}>Best Time</span>
-                    <span class={styles.metricValue}>
-                      {formatTime(summary.minTotalTime)}
-                    </span>
+                    <div class={styles.metric}>
+                      <span class={styles.metricLabel}>Min</span>
+                      <span class={styles.metricValue}>
+                        {formatNumber(summary.minRowsPerSec)} rows/sec
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
