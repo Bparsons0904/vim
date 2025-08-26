@@ -11,19 +11,47 @@
   font-weight: 600;
 }
 
+.gridContainer {
+  max-width: 90vw;
+  max-height: 70vh;
+  margin: 0 auto;
+  overflow: auto;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background-color: #f1f5f9;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+    
+    &:hover {
+      background-color: #94a3b8;
+    }
+  }
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 1rem;
-  aspect-ratio: 1;
-  max-width: 600px;
-  margin: 0 auto;
+  gap: 0.5rem;
+  padding: 1rem;
+  // Remove max-width/height constraints to allow natural sizing
+  min-width: 100%;
 }
 
 .gridCell {
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,7 +59,9 @@
   color: #64748b;
   background-color: #f8fafc;
   transition: all 0.2s ease;
-  min-height: 120px;
+  min-height: 60px;
+  aspect-ratio: 1;
+  font-size: 0.75rem;
   
   &:hover {
     border-color: #3b82f6;
