@@ -4,6 +4,116 @@
   margin: 0 auto;
 }
 
+.userStats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: rgba(241, 245, 249, 0.8);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.statBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.statLabel {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.healthBar, .energyBarStat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.healthBarTrack, .energyBarTrack {
+  flex: 1;
+  height: 20px;
+  background-color: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid #d1d5db;
+}
+
+.healthBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+  }
+}
+
+.energyBarStatFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shimmer 2s infinite;
+  }
+}
+
+.statValue {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  min-width: 60px;
+  text-align: center;
+}
+
+.levelDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.levelValue {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #059669;
+  min-width: 30px;
+  text-align: center;
+}
+
+.levelProgress {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 .title {
   text-align: center;
   margin-bottom: 2rem;
@@ -11,13 +121,74 @@
   font-weight: 600;
 }
 
-.gridContainer {
+.gridWrapper {
+  display: flex;
+  flex-direction: column;
   max-width: 90vw;
-  max-height: 70vh;
   margin: 0 auto;
-  overflow: auto;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.columnHeaders {
+  display: flex;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cornerSpace {
+  width: 40px; // Space for row headers
+  background-color: #f1f5f9;
+  border-right: 1px solid #e2e8f0;
+}
+
+.columnHeader {
+  flex: 1;
+  padding: 0.5rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #64748b;
+  border-right: 1px solid #e2e8f0;
+  
+  &:last-child {
+    border-right: none;
+  }
+}
+
+.gridWithRows {
+  display: flex;
+  max-height: 70vh;
+}
+
+.rowHeaders {
+  display: flex;
+  flex-direction: column;
+  width: 40px;
+  background-color: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+}
+
+.rowHeader {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.gridContainer {
+  flex: 1;
+  overflow: auto;
   background-color: #ffffff;
   
   // Custom scrollbar styling
@@ -62,6 +233,7 @@
   min-height: 60px;
   aspect-ratio: 1;
   font-size: 0.75rem;
+  position: relative;
   
   &:hover {
     border-color: #3b82f6;
@@ -75,6 +247,133 @@
     color: #dc2626;
     box-shadow: 0 0 10px rgba(220, 38, 38, 0.3);
   }
+  
+  &.attacked {
+    border-width: 2px;
+    animation: pulse 1s infinite;
+    
+    &:not(.selected) {
+      border-color: #f59e0b;
+      background-color: #fffbeb;
+    }
+  }
+}
+
+.cellContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 4px;
+}
+
+.cellLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.energyBar {
+  width: 80%;
+  height: 8px;
+  position: relative;
+}
+
+.energyBarTrack {
+  width: 100%;
+  height: 100%;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.energyBarCenter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background-color: #64748b;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.energyBarFill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.1s linear; // Smooth but fast progression
+  max-width: 50%; // Can only fill half the bar (center to edge)
+  
+  &.stable {
+    width: 0%;
+    left: 50%;
+  }
+  
+  &.drain {
+    background: linear-gradient(270deg, #dc2626, #ef4444); // Left-facing gradient
+    right: 50%; // Start from center, grow leftward
+    transform-origin: right center; // Grow from right (center) to left
+    animation: drainPulse 1s infinite;
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.4);
+  }
+  
+  &.overcharge {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24); // Right-facing gradient
+    left: 50%; // Start from center, grow rightward
+    transform-origin: left center; // Grow from left (center) to right
+    animation: overchargePulse 1s infinite;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+  }
+}
+
+.attackIndicator {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 2px;
+  text-align: center;
+  animation: blink 1s infinite;
+  
+  &.drain {
+    background-color: #dc2626;
+    color: white;
+  }
+  
+  &.overcharge {
+    background-color: #f59e0b;
+    color: white;
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes drainPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes overchargePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .debug {
@@ -85,4 +384,22 @@
   font-family: monospace;
   font-size: 0.875rem;
   color: #374151;
+  
+  div {
+    margin-bottom: 0.5rem;
+    
+    &:last-child {
+      margin-bottom: 0;
+      font-weight: 600;
+      
+      // Highlight action needed
+      &:contains('insert') {
+        color: #dc2626;
+      }
+      
+      &:contains('absorb') {
+        color: #f59e0b;
+      }
+    }
+  }
 }
