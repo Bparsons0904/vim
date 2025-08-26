@@ -12,9 +12,9 @@ const LandingPage = lazy(() => import("@pages/Landing/Landing"));
 const WorkstationComponent = lazy(() => import("@pages/Workstation/Workstation"));
 const LoadTestPage = lazy(() => import("@pages/LoadTest/LoadTest"));
 
-// Create a 9x9 workstation wrapper
+// Create a 7x7 workstation wrapper
 const WorkstationPage: Component = () => {
-  return <WorkstationComponent gridRows={9} gridCols={9} />;
+  return <WorkstationComponent gridRows={7} gridCols={7} />;
 };
 
 const ProtectedRoute = (Component: Component) => {

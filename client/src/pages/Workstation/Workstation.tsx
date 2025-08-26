@@ -394,7 +394,6 @@ export const Workstation: Component<WorkstationProps> = (props) => {
                 data-position={`${row},${col}`}
               >
                 <div class={styles.cellContent}>
-                  <div class={styles.cellLabel}>Cell {row},{col}</div>
                   <div class={styles.energyBar}>
                     <div class={styles.energyBarTrack}>
                       <div class={styles.energyBarCenter}></div>
