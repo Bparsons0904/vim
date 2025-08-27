@@ -1,6 +1,5 @@
-import { Component, Show, For, createMemo } from "solid-js";
+import { Component, Show, createMemo } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
-import { Button } from "@components/common/ui/Button/Button";
 import { TestHistory } from "./components/TestHistory";
 import { PerformanceSummary as PerformanceSummaryComponent } from "./components/PerformanceSummary";
 import { usePerformanceSummary } from "@services/api/hooks/loadtest.hooks";

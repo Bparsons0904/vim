@@ -8,8 +8,7 @@ import {
   getPerformanceSummary,
   StartLoadTestResponse,
   GetLoadTestResponse,
-  DeleteLoadTestResponse,
-  GetPerformanceSummaryResponse
+  DeleteLoadTestResponse
 } from "../endpoints/loadtest.api";
 import { LoadTestConfig, LoadTestResult } from "@pages/LoadTest/LoadTest";
 import { ApiClientError, NetworkError } from "../apiTypes";
@@ -76,8 +75,6 @@ export const useStartLoadTest = () => {
         : 'Failed to start load test. Please check your connection.';
       
       toast.showError(message);
-
-      console.error('Load test start failed:', error);
     },
   }));
 };
@@ -108,8 +105,6 @@ export const useDeleteLoadTest = () => {
         : 'Failed to delete load test. Please try again.';
       
       toast.showError(message);
-
-      console.error('Load test deletion failed:', error);
     },
   }));
 };

@@ -45,8 +45,7 @@ const LoadTest: Component = () => {
     try {
       const result = await startTestMutation.mutateAsync(config);
       setCurrentTest(result.loadTest);
-    } catch (error) {
-      console.error("Failed to start test:", error);
+    } catch {
       // Error handling is done in the mutation hook
     }
   };

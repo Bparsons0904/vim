@@ -6,9 +6,9 @@ import { Button } from "@components/common/ui/Button/Button";
 const Dashboard: Component = () => {
   const { user } = useAuth();
 
-  const handleAction = (action: string) => {
-    console.log(`Action: ${action}`);
+  const handleAction = (_action: string) => {
     // Handle actions here
+    // TODO: Implement specific action handling
   };
 
   return (

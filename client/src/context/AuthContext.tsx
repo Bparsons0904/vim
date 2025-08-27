@@ -56,8 +56,8 @@ export function AuthProvider(props: { children: JSX.Element }) {
       setAuthToken(result.token);
       setIsAuthenticated(!!result.user);
       navigate("/");
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch {
+      // Error handling is done in the mutation hook
     }
   };
 
@@ -69,8 +69,8 @@ export function AuthProvider(props: { children: JSX.Element }) {
       setUser(user);
       setIsAuthenticated(!!user);
       navigate("/");
-    } catch (error) {
-      console.error('Registration failed:', error);
+    } catch {
+      // Error handling is done in the mutation hook
     }
   };
 
@@ -82,8 +82,7 @@ export function AuthProvider(props: { children: JSX.Element }) {
       setIsAuthenticated(false);
       setAuthToken(null);
       navigate("/login");
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
       // Still clear local state even if server logout fails
       setUser(null);
       setIsAuthenticated(false);

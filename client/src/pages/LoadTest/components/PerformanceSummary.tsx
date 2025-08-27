@@ -6,7 +6,7 @@ import styles from "./PerformanceSummary.module.scss";
 interface PerformanceSummaryProps {
   summaries: PerformanceSummaryData[];
   isLoading?: boolean;
-  error?: any;
+  error?: Error | null;
 }
 
 export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) => {
@@ -14,10 +14,6 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
     return num.toLocaleString();
   };
 
-  const formatTime = (ms: number): string => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
 
   const getMethodDisplayName = (method: string): string => {
     switch (method) {

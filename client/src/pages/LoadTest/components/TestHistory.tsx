@@ -1,13 +1,12 @@
 import { Component, Show, For } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
-import { Button } from "@components/common/ui/Button/Button";
 import { LoadTestResult } from "../LoadTest";
 import styles from "./TestHistory.module.scss";
 
 interface TestHistoryProps {
   tests: LoadTestResult[];
   isLoading?: boolean;
-  error?: any;
+  error?: Error | null;
 }
 
 export const TestHistory: Component<TestHistoryProps> = (props) => {
@@ -142,7 +141,7 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
       >
         <div class={styles.historyList}>
           <For each={recentTests()}>
-            {(test, index) => (
+            {(test) => (
               <div class={styles.historyItem}>
                 <div class={styles.itemHeader}>
                   <div class={styles.itemTitle}>

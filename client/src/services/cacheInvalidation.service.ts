@@ -8,8 +8,6 @@ export function useCacheInvalidation() {
 
   createEffect(() => {
     const cleanup = webSocket.onCacheInvalidation((resourceType: string, resourceId: string) => {
-      console.log(`[CacheInvalidation] Invalidating ${resourceType}:${resourceId}`);
-      
       switch (resourceType) {
         case 'user':
           // Invalidate user-specific queries
@@ -24,7 +22,7 @@ export function useCacheInvalidation() {
           break;
           
         default:
-          console.warn(`[CacheInvalidation] Unknown resource type: ${resourceType}`);
+          // Unknown resource type - no action needed
           break;
       }
     });

@@ -86,7 +86,6 @@ interface WebSocketProviderProps {
 
 export function WebSocketProvider(props: WebSocketProviderProps) {
   const { isAuthenticated, authToken } = useAuth();
-  // const debug = props.debug ?? import.meta.env.DEV;
 
   const [lastError, setLastError] = createSignal<string | null>(null);
   const [lastMessage, setLastMessage] = createSignal<string>("");
@@ -107,9 +106,10 @@ export function WebSocketProvider(props: WebSocketProviderProps) {
   const [loadTestErrorCallbacks, setLoadTestErrorCallbacks] =
     createSignal<Array<(testId: string, error: string) => void>>([]);
 
-  const log = (message: string, ...args: unknown[]) => {
-    // if (!debug) {
-    console.log(`[WebSocket] ${message}`, ...args);
+  const log = (_message: string, ..._args: unknown[]) => {
+    // Debug logging disabled for production
+    // if (debug) {
+    //   console.log(`[WebSocket] ${message}`, ...args);
     // }
   };
 

@@ -87,22 +87,6 @@ export const LoadTestForm: Component<LoadTestFormProps> = (props) => {
     }
   };
 
-  const getSpeedLevel = (methodValue: string): number => {
-    switch (methodValue) {
-      case "brute_force":
-        return 1; // 20% speed
-      case "batched":
-        return 2; // 40% speed
-      case "optimized":
-        return 3; // 60% speed
-      case "ludicrous":
-        return 4; // 80% speed
-      case "plaid":
-        return 5; // 100% speed
-      default:
-        return 1;
-    }
-  };
 
   const getEstimatedTime = () => {
     let rowsPerSecond: number;
