@@ -124,10 +124,8 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 	recordsChan := make(chan []interface{}, 1000)
 	errChan := make(chan error, 1)
 
-	// Timing variables
-	var totalParseTime int64
-	var totalInsertTime int64
-	var insertMux sync.Mutex // Mutex to safely update totalInsertTime
+	// Timing variables - use wall-clock time instead of summed worker time
+	parseStartTime := time.Now()
 	startTime := time.Now()
 	lastUpdateTime := time.Now()
 
@@ -170,9 +168,7 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 			}
 			defer stmt.Close()
 
-			workerInsertTime := int64(0)
 			for record := range recordsChan {
-				insertStart := time.Now()
 				_, err := stmt.Exec(record...)
 				if err != nil {
 					select {
@@ -181,7 +177,6 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 					}
 					return
 				}
-				workerInsertTime += time.Since(insertStart).Nanoseconds()
 			}
 
 			// Finalize the COPY operation.
@@ -201,10 +196,6 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 				}
 				return
 			}
-
-			insertMux.Lock()
-			totalInsertTime += workerInsertTime
-			insertMux.Unlock()
 		}(i)
 	}
 
@@ -237,12 +228,13 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 	}
 
 	rowCount := 0
+	var parseEndTime time.Time
 	go func() {
 		defer close(recordsChan)
 		for {
-			parseStart := time.Now()
 			csvRecord, err := reader.Read()
 			if err == io.EOF {
+				parseEndTime = time.Now()
 				break
 			}
 			if err != nil {
@@ -252,7 +244,6 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 				}
 				return
 			}
-			totalParseTime += time.Since(parseStart).Nanoseconds()
 
 			// Create the target record with a single pass, using the pre-calculated mapping
 			record := make([]interface{}, len(dbColumns))
@@ -282,6 +273,23 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 				elapsed := time.Since(startTime)
 				rowsPerSecond := int(float64(rowCount) / elapsed.Seconds())
 				progress := float64(rowCount) / float64(totalRecords) * 100
+				
+				// Calculate ETA
+				var eta string
+				if rowCount > 0 && rowsPerSecond > 0 {
+					remaining := totalRecords - rowCount
+					etaSeconds := remaining / rowsPerSecond
+					if etaSeconds < 60 {
+						eta = fmt.Sprintf("%ds", etaSeconds)
+					} else if etaSeconds < 3600 {
+						eta = fmt.Sprintf("%dm %ds", etaSeconds/60, etaSeconds%60)
+					} else {
+						eta = fmt.Sprintf("%dh %dm", etaSeconds/3600, (etaSeconds%3600)/60)
+					}
+				} else {
+					eta = "Calculating..."
+				}
+				
 				c.wsManager.SendLoadTestProgress(testID, map[string]any{
 					"phase":           "insertion",
 					"overallProgress": 25 + (progress * 0.75),
@@ -289,7 +297,7 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 					"currentPhase":    "Plaid COPY Insertion",
 					"rowsProcessed":   rowCount,
 					"rowsPerSecond":   rowsPerSecond,
-					"eta":             "Calculating...",
+					"eta":             eta,
 					"message": fmt.Sprintf(
 						"Streaming records to database (%d/%d)...",
 						rowCount,
@@ -303,6 +311,7 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 
 	// Wait for all workers to finish
 	wg.Wait()
+	insertEndTime := time.Now()
 
 	// Check if any error occurred during the process
 	select {
@@ -311,13 +320,15 @@ func (c *PlaidController) executeConcurrentStreamingCopy(
 	default:
 	}
 
-	parseTimeMs := int(totalParseTime / 1e6)
-	insertTimeMs := int(totalInsertTime / 1e6)
+	// Calculate wall-clock times
+	parseTimeMs := int(parseEndTime.Sub(parseStartTime).Milliseconds())
+	insertTimeMs := int(insertEndTime.Sub(parseEndTime).Milliseconds())
+	totalTimeMs := int(insertEndTime.Sub(startTime).Milliseconds())
 
 	return PlaidTimingResult{
 		ParseTime:  parseTimeMs,
 		InsertTime: insertTimeMs,
-		TotalTime:  parseTimeMs + insertTimeMs,
+		TotalTime:  totalTimeMs,
 	}, nil
 }
 
