@@ -112,7 +112,9 @@ func (c *OptimizedOnlyController) processLoadTest(ctx context.Context, loadTest 
 		"message":          "Starting optimized streaming insertion...",
 	})
 	
-	timingResult, err := c.insertOptimizedStreaming(ctx, csvPath, loadTest.ID, loadTest.Rows, time.Now(), testID)
+	// Start timing for parse + insert only (excluding CSV generation)
+	parseInsertStartTime := time.Now()
+	timingResult, err := c.insertOptimizedStreaming(ctx, csvPath, loadTest.ID, loadTest.Rows, parseInsertStartTime, testID)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "Optimized insertion failed", err)
 		c.wsManager.SendLoadTestError(testID, "Optimized insertion failed: "+err.Error())
@@ -500,7 +502,7 @@ func (c *OptimizedOnlyController) insertOptimizedStreaming(
 		}
 	}
 
-	insertTime := int(time.Since(startTime).Milliseconds())
+	totalParseInsertTime := int(time.Since(startTime).Milliseconds())
 
 	// Send final progress update
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -509,19 +511,22 @@ func (c *OptimizedOnlyController) insertOptimizedStreaming(
 		"phaseProgress":   100,
 		"currentPhase":    "Optimized Insertion Complete",
 		"rowsProcessed":   progress.RecordsProcessed,
-		"rowsPerSecond":   int(float64(progress.RecordsProcessed) / (float64(insertTime) / 1000)),
+		"rowsPerSecond":   int(float64(progress.RecordsProcessed) / (float64(totalParseInsertTime) / 1000)),
 		"eta":             "Done",
 		"message":         fmt.Sprintf("Successfully inserted %d records using optimized method", progress.RecordsProcessed),
 	})
 
+	// Calculate actual insert time (total - parse time)
+	actualInsertTime := totalParseInsertTime - int(parseTime.Milliseconds())
+
 	log.Info("optimized streaming insertion completed",
 		"totalRecords", progress.RecordsProcessed,
 		"parseTimeMs", parseTime.Milliseconds(),
-		"insertTimeMs", insertTime)
+		"insertTimeMs", actualInsertTime)
 
 	return OptimizedTimingResult{
 		ParseTime:  int(parseTime.Milliseconds()),
-		InsertTime: insertTime,
+		InsertTime: actualInsertTime,
 	}, nil
 }
 
@@ -806,10 +811,12 @@ func (c *OptimizedOnlyController) GetPerformanceSummary(ctx context.Context) ([]
 	var totalTimeValues []int
 	
 	for _, test := range optimizedTests {
-		if test.TotalTime != nil && *test.TotalTime > 0 {
-			rowsPerSec := int(float64(test.Rows) / (float64(*test.TotalTime) / 1000.0))
+		// Use parseTime + insertTime to exclude CSV generation time
+		if test.ParseTime != nil && test.InsertTime != nil && (*test.ParseTime + *test.InsertTime) > 0 {
+			parseInsertTime := *test.ParseTime + *test.InsertTime
+			rowsPerSec := int(float64(test.Rows) / (float64(parseInsertTime) / 1000.0))
 			rowsPerSecondValues = append(rowsPerSecondValues, rowsPerSec)
-			totalTimeValues = append(totalTimeValues, *test.TotalTime)
+			totalTimeValues = append(totalTimeValues, parseInsertTime)
 		}
 	}
 	

@@ -1,0 +1,61 @@
+@use "../../styles/variables" as *;
+@use "../../styles/colors" as *;
+@use "../../styles/mixins" as *;
+
+.processInfoCard {
+  h2 {
+    margin-bottom: $spacing-lg;
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-default;
+  }
+}
+
+.processSteps {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.processStep {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $bg-subtle;
+  border-radius: $border-radius-md;
+  border: 1px solid $border-default;
+}
+
+.stepNumber {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: $color-primary-500;
+  color: $color-white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stepContent {
+  flex: 1;
+  
+  h3 {
+    margin: 0 0 $spacing-xs 0;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    color: $text-default;
+  }
+  
+  p {
+    margin: 0;
+    font-size: $font-size-sm;
+    color: $text-muted;
+    line-height: 1.5;
+  }
+}

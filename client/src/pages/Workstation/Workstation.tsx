@@ -180,12 +180,7 @@ export const Workstation: Component<WorkstationProps> = (props) => {
     let newRow = currentRow();
     let newCol = currentCol();
 
-    console.log(`Moving ${direction} ${count} times from (${newRow}, ${newCol})`);
-
     for (let i = 0; i < count; i++) {
-      const prevRow = newRow;
-      const prevCol = newCol;
-      
       switch (direction) {
         case "left":
           if (newCol > 0) newCol--;
@@ -200,8 +195,6 @@ export const Workstation: Component<WorkstationProps> = (props) => {
           if (newRow < GRID_ROWS - 1) newRow++;
           break;
       }
-      
-      console.log(`Step ${i + 1}: (${prevRow}, ${prevCol}) -> (${newRow}, ${newCol})`);
     }
 
     console.log(`Final position: (${newRow}, ${newCol})`);
@@ -296,7 +289,6 @@ export const Workstation: Component<WorkstationProps> = (props) => {
 
   createEffect(() => {
     const motion = currentMotion();
-    console.log("Motion:", motion);
     if (motion?.type === "movement") {
       moveSelection(motion.direction, motion.count);
       clearMotion(); // Clear the motion after processing

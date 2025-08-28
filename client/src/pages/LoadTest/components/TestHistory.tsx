@@ -1,13 +1,12 @@
 import { Component, Show, For } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
-import { Button } from "@components/common/ui/Button/Button";
 import { LoadTestResult } from "../LoadTest";
 import styles from "./TestHistory.module.scss";
 
 interface TestHistoryProps {
   tests: LoadTestResult[];
   isLoading?: boolean;
-  error?: any;
+  error?: Error | null;
 }
 
 export const TestHistory: Component<TestHistoryProps> = (props) => {
@@ -21,6 +20,28 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
     if (!timeMs || timeMs === 0) return 'N/A';
     const rowsPerSecond = Math.round((rows / timeMs) * 1000);
     return `${rowsPerSecond.toLocaleString()} rows/sec`;
+  };
+
+  const formatTestDate = (createdAt: string): string => {
+    const date = new Date(createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    // For older tests, show the actual date
+    return date.toLocaleDateString(undefined, { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const getStatusColor = (status: string): string => {
@@ -59,23 +80,37 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
         return 'Optimized';
       case 'ludicrous':
         return 'Ludicrous Speed';
+      case 'plaid':
+        return 'Plaid';
       default:
         return method;
     }
   };
 
-  // Take only the last 10 tests
-  const recentTests = () => props.tests.slice(0, 10);
+  const getMethodColor = (method: string): string => {
+    switch (method) {
+      case 'brute_force':
+        return '#f39c12'; // Orange/yellow for warning
+      case 'batched':
+        return '#3498db'; // Blue for info
+      case 'optimized':
+        return '#27ae60'; // Green for success
+      case 'ludicrous':
+        return '#e74c3c'; // Red for primary/intense
+      case 'plaid':
+        return '#6c5ce7'; // Purple for Plaid
+      default:
+        return '#95a5a6'; // Gray for unknown
+    }
+  };
+
+  // Server now returns tests in reverse chronological order (most recent first)
+  const recentTests = () => props.tests;
 
   return (
     <Card class={styles.testHistoryCard}>
       <div class={styles.header}>
         <h2>Recent Test History</h2>
-        <Show when={props.tests.length > 0}>
-          <Button variant="secondary" size="sm">
-            Export Results
-          </Button>
-        </Show>
       </div>
       
       <Show when={props.error}>
@@ -106,7 +141,7 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
       >
         <div class={styles.historyList}>
           <For each={recentTests()}>
-            {(test, index) => (
+            {(test) => (
               <div class={styles.historyItem}>
                 <div class={styles.itemHeader}>
                   <div class={styles.itemTitle}>
@@ -116,19 +151,22 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
                     >
                       {getStatusIcon(test.status)}
                     </span>
-                    Test #{index() + 1}
+                    {formatTestDate(test.createdAt)}
                   </div>
                   <div class={styles.itemMethod}>
+                    <span 
+                      class={styles.methodIcon}
+                      style={{ 'background-color': getMethodColor(test.method) }}
+                    />
                     {getMethodDisplayName(test.method)}
                   </div>
                 </div>
                 
                 <div class={styles.itemDetails}>
                   <span class={styles.detail}>{test.rows.toLocaleString()} rows</span>
-                  <span class={styles.detail}>{test.columns} columns</span>
-                  <Show when={test.status === 'completed' && test.totalTime}>
-                    <span class={styles.detail}>{formatTime(test.totalTime)}</span>
-                    <span class={styles.detail}>{formatRate(test.rows, test.totalTime)}</span>
+                  <Show when={test.status === 'completed' && test.parseTime && test.insertTime}>
+                    <span class={styles.detail}>{formatTime((test.parseTime || 0) + (test.insertTime || 0))}</span>
+                    <span class={styles.detail}>{formatRate(test.rows, (test.parseTime || 0) + (test.insertTime || 0))}</span>
                   </Show>
                 </div>
                 
@@ -141,14 +179,6 @@ export const TestHistory: Component<TestHistoryProps> = (props) => {
               </div>
             )}
           </For>
-          
-          <Show when={props.tests.length > 10}>
-            <div class={styles.showMore}>
-              <Button variant="ghost" size="sm">
-                Show {props.tests.length - 10} more tests
-              </Button>
-            </div>
-          </Show>
         </div>
       </Show>
     </Card>

@@ -36,6 +36,7 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
 
   const [startTime, setStartTime] = createSignal(Date.now());
   const [currentTime, setCurrentTime] = createSignal(Date.now());
+  const [currentTestId, setCurrentTestId] = createSignal<string>('');
 
   // Update current time every second for elapsed time display
   createEffect(() => {
@@ -45,6 +46,26 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
       }, 1000);
       
       onCleanup(() => clearInterval(interval));
+    }
+  });
+
+  // Reset progress when a new test starts
+  createEffect(() => {
+    if (props.test.id !== currentTestId()) {
+      // New test detected - reset progress state
+      setCurrentTestId(props.test.id);
+      setProgress({
+        phase: 'csv_generation',
+        overallProgress: 0,
+        phaseProgress: 0,
+        currentPhase: 'Initializing...',
+        rowsProcessed: 0,
+        rowsPerSecond: 0,
+        eta: 'Calculating...',
+        message: 'Starting test...'
+      });
+      setStartTime(Date.now());
+      setCurrentTime(Date.now());
     }
   });
 
@@ -208,6 +229,9 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
               <p>Generate test data</p>
             </div>
           </div>
+          
+          <div class={`${styles.timelineConnector} ${progress().overallProgress > 25 ? styles.completed : ''}`}></div>
+          
           <div class={`${styles.timelineItem} ${progress().phase === 'parsing' || progress().overallProgress > 85 ? styles.active : ''} ${progress().overallProgress > 85 ? styles.completed : ''}`}>
             <div class={styles.timelineIcon}>2</div>
             <div class={styles.timelineContent}>
@@ -215,6 +239,9 @@ export const ProgressDisplay: Component<ProgressDisplayProps> = (props) => {
               <p>Validate and parse CSV</p>
             </div>
           </div>
+          
+          <div class={`${styles.timelineConnector} ${progress().overallProgress > 85 ? styles.completed : ''}`}></div>
+          
           <div class={`${styles.timelineItem} ${progress().phase === 'insertion' || progress().overallProgress >= 100 ? styles.active : ''} ${progress().overallProgress >= 100 ? styles.completed : ''}`}>
             <div class={styles.timelineIcon}>3</div>
             <div class={styles.timelineContent}>

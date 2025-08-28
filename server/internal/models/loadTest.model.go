@@ -1,6 +1,9 @@
 package models
 
-import "github.com/google/uuid"
+import (
+	"time"
+	"github.com/google/uuid"
+)
 
 type LoadTest struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:uuidv7()" json:"id"`
@@ -14,6 +17,7 @@ type LoadTest struct {
 	InsertTime   *int      `gorm:"type:int"                              json:"insertTime"`  // milliseconds
 	TotalTime    *int      `gorm:"type:int"                              json:"totalTime"`   // milliseconds
 	ErrorMessage *string   `gorm:"type:text"                             json:"errorMessage,omitempty"`
+	CreatedAt    time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not null" json:"createdAt"`
 }
 
 type CreateLoadTestRequest struct {

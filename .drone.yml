@@ -3,6 +3,12 @@ kind: pipeline
 type: docker
 name: build
 
+trigger:
+  branch:
+    - main
+  event:
+    - push
+
 steps:
   - name: build-frontend
     image: node:22-alpine
@@ -131,8 +137,16 @@ steps:
         from_secret: GENERAL_VERSION
       SERVER_PORT:
         from_secret: SERVER_PORT
-      DB_PATH:
-        from_secret: DB_PATH
+      DB_HOST:
+        from_secret: DB_HOST
+      DB_PORT:
+        from_secret: DB_PORT
+      DB_NAME:
+        from_secret: DB_NAME
+      DB_USER:
+        from_secret: DB_USER
+      DB_PASSWORD:
+        from_secret: DB_PASSWORD
       DB_CACHE_ADDRESS:
         from_secret: DB_CACHE_ADDRESS
       DB_CACHE_PORT:
@@ -174,4 +188,3 @@ steps:
 
 depends_on:
   - build
-
