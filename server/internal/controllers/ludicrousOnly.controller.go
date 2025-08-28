@@ -73,8 +73,17 @@ func (c *LudicrousOnlyController) CreateAndRunTest(
 		return nil, fmt.Errorf("failed to create load test: %w", err)
 	}
 
-	// Process the load test asynchronously
-	go c.processLoadTest(ctx, loadTest)
+	// Process the load test asynchronously with recovery
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("processLoadTest goroutine panicked", "panic", r, "loadTestId", loadTest.ID)
+				c.updateLoadTestError(ctx, loadTest, "Internal processing error", fmt.Errorf("goroutine panic: %v", r))
+				c.wsManager.SendLoadTestError(loadTest.ID.String(), fmt.Sprintf("Internal processing error: %v", r))
+			}
+		}()
+		c.processLoadTest(ctx, loadTest)
+	}()
 
 	log.Info("ludicrous speed load test created and started", "loadTestId", loadTest.ID)
 	return loadTest, nil
@@ -84,6 +93,19 @@ func (c *LudicrousOnlyController) CreateAndRunTest(
 func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest *LoadTest) {
 	log := c.log.Function("processLoadTest")
 	testID := loadTest.ID.String()
+	
+	// Create a derived context with timeout for the entire operation
+	processCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+	
+	// Check for cancellation before starting
+	select {
+	case <-processCtx.Done():
+		c.updateLoadTestError(ctx, loadTest, "Process cancelled before start", processCtx.Err())
+		c.wsManager.SendLoadTestError(testID, "Load test cancelled: "+processCtx.Err().Error())
+		return
+	default:
+	}
 
 	// Send initial progress
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
@@ -98,11 +120,20 @@ func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest 
 	})
 
 	// Step 1: Generate CSV file
-	csvPath, csvGenTime, err := c.generateLudicrousCSVFile(loadTest)
+	csvPath, csvGenTime, err := c.generateLudicrousCSVFile(processCtx, loadTest)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV generation failed", err)
 		c.wsManager.SendLoadTestError(testID, "CSV generation failed: "+err.Error())
 		return
+	}
+	
+	// Check for cancellation after CSV generation
+	select {
+	case <-processCtx.Done():
+		c.updateLoadTestError(ctx, loadTest, "Process cancelled after CSV generation", processCtx.Err())
+		c.wsManager.SendLoadTestError(testID, "Load test cancelled: "+processCtx.Err().Error())
+		return
+	default:
 	}
 
 	// Step 2: Ludicrous speed streaming insertion
@@ -120,7 +151,7 @@ func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest 
 	// Start timing for parse + insert only (excluding CSV generation)
 	parseInsertStartTime := time.Now()
 	timingResult, err := c.insertLudicrousStreaming(
-		ctx,
+		processCtx,
 		csvPath,
 		loadTest.ID,
 		loadTest.Rows,
@@ -169,6 +200,7 @@ func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest 
 
 // generateLudicrousCSVFile creates a CSV file optimized for ludicrous speed method
 func (c *LudicrousOnlyController) generateLudicrousCSVFile(
+	ctx context.Context,
 	loadTest *LoadTest,
 ) (string, int, error) {
 	log := c.log.Function("generateLudicrousCSVFile")
@@ -264,6 +296,15 @@ func (c *LudicrousOnlyController) generateLudicrousCSVFile(
 
 	// Generate data rows with ludicrous speed optimizations
 	for i := 0; i < loadTest.Rows; i++ {
+		// Check for cancellation every 10,000 rows for better performance
+		if i > 0 && i%10000 == 0 {
+			select {
+			case <-ctx.Done():
+				return "", 0, fmt.Errorf("CSV generation cancelled: %w", ctx.Err())
+			default:
+			}
+		}
+		
 		row := c.generateLudicrousDataRow(allColumns, selectedDateColumnMap, allDateColumnMap, r)
 		if err := writer.Write(row); err != nil {
 			return "", 0, fmt.Errorf("failed to write row %d: %w", i, err)
@@ -579,21 +620,48 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 	parseStartTime := time.Now()
 	go c.parseLudicrousCSVStreaming(file, loadTestID, batchChan, parserDone, batchSize)
 
-	// Wait for parser
+	// Wait for parser or worker errors with comprehensive error handling
 	var parseErr error
-	select {
-	case parseErr = <-parserDone:
-		if parseErr != nil {
-			close(batchChan)
-			progressDone <- true
-			return LudicrousTimingResult{}, fmt.Errorf("CSV parsing failed: %w", parseErr)
+	var allErrors []error
+	
+	// Wait for parser with timeout
+	parseComplete := false
+	for !parseComplete {
+		select {
+		case parseErr = <-parserDone:
+			parseComplete = true
+			if parseErr != nil {
+				allErrors = append(allErrors, fmt.Errorf("CSV parsing failed: %w", parseErr))
+			}
+		case workerErr := <-errorChan:
+			if workerErr != nil {
+				allErrors = append(allErrors, fmt.Errorf("worker failed: %w", workerErr))
+			}
+		case <-ctx.Done():
+			allErrors = append(allErrors, fmt.Errorf("operation cancelled: %w", ctx.Err()))
+			parseComplete = true
+		case <-time.After(10 * time.Minute):
+			allErrors = append(allErrors, fmt.Errorf("parsing timeout exceeded"))
+			parseComplete = true
 		}
-	case workerErr := <-errorChan:
-		if workerErr != nil {
-			close(batchChan)
-			progressDone <- true
-			return LudicrousTimingResult{}, fmt.Errorf("worker failed: %w", workerErr)
+		
+		// If we have critical errors, stop immediately
+		if len(allErrors) > 0 {
+			break
 		}
+	}
+	
+	// Handle any accumulated errors
+	if len(allErrors) > 0 {
+		close(batchChan)
+		progressDone <- true
+		
+		// Combine all errors into a single error message
+		var errorMsgs []string
+		for _, err := range allErrors {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		return LudicrousTimingResult{}, fmt.Errorf("multiple errors occurred: %s", strings.Join(errorMsgs, "; "))
 	}
 	parseTime := time.Since(parseStartTime)
 
@@ -603,11 +671,21 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 	close(errorChan)
 	progressDone <- true
 
-	// Check for worker errors
+	// Collect all remaining worker errors
+	var remainingErrors []error
 	for err := range errorChan {
 		if err != nil {
-			return LudicrousTimingResult{}, fmt.Errorf("worker error: %w", err)
+			remainingErrors = append(remainingErrors, err)
 		}
+	}
+	
+	// If we have any worker errors, return them
+	if len(remainingErrors) > 0 {
+		var errorMsgs []string
+		for _, err := range remainingErrors {
+			errorMsgs = append(errorMsgs, err.Error())
+		}
+		return LudicrousTimingResult{}, fmt.Errorf("worker errors: %s", strings.Join(errorMsgs, "; "))
 	}
 
 	totalParseInsertTime := int(time.Since(startTime).Milliseconds())
@@ -869,56 +947,133 @@ func (c *LudicrousOnlyController) monitorLudicrousProgress(
 	done <-chan bool,
 ) {
 	ticker := time.NewTicker(2 * time.Second) // Less frequent updates for better performance
+	heartbeatTicker := time.NewTicker(10 * time.Second) // Heartbeat every 10 seconds
 	defer ticker.Stop()
+	defer heartbeatTicker.Stop()
+	
+	lastRecordsProcessed := 0
+	stuckCount := 0
 
 	for {
 		select {
 		case <-done:
 			return
 		case <-ticker.C:
-			progress.mu.RLock()
-
-			elapsed := time.Since(progress.StartTime)
-			overallProgress := float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
-			phaseProgress := overallProgress * 100
-
-			var eta string
-			if progress.RecordsProcessed > 0 && overallProgress > 0 {
-				totalEstimated := time.Duration(float64(elapsed) / overallProgress)
-				remaining := totalEstimated - elapsed
-				if remaining > 0 {
-					eta = fmt.Sprintf("%ds", int(remaining.Seconds()))
-				} else {
-					eta = "Almost done"
-				}
-			} else {
-				eta = "Calculating..."
-			}
-
-			rowsPerSecond := 0
-			if elapsed.Seconds() > 0 {
-				rowsPerSecond = int(float64(progress.RecordsProcessed) / elapsed.Seconds())
-			}
-
-			progress.mu.RUnlock()
-
-			c.wsManager.SendLoadTestProgress(testID, map[string]any{
-				"phase":           "insertion",
-				"overallProgress": 85 + (15 * overallProgress),
-				"phaseProgress":   phaseProgress,
-				"currentPhase":    "Ludicrous Speed Insertion",
-				"rowsProcessed":   progress.RecordsProcessed,
-				"rowsPerSecond":   rowsPerSecond,
-				"eta":             eta,
-				"message": fmt.Sprintf(
-					"Ludicrous speed: %d/%d records (%d batches)",
-					progress.RecordsProcessed,
-					progress.TotalRecords,
-					progress.BatchesProcessed,
-				),
-			})
+			c.sendProgressUpdate(progress, testID, &lastRecordsProcessed, &stuckCount)
+		case <-heartbeatTicker.C:
+			// Send heartbeat with stall detection
+			c.sendHeartbeat(progress, testID, &lastRecordsProcessed, &stuckCount)
 		}
 	}
+}
+
+func (c *LudicrousOnlyController) sendProgressUpdate(
+	progress *Progress,
+	testID string,
+	lastRecordsProcessed *int,
+	stuckCount *int,
+) {
+	log := c.log.Function("sendProgressUpdate")
+	
+	progress.mu.RLock()
+	defer progress.mu.RUnlock()
+
+	elapsed := time.Since(progress.StartTime)
+	overallProgress := float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
+	phaseProgress := overallProgress * 100
+
+	var eta string
+	if progress.RecordsProcessed > 0 && overallProgress > 0 {
+		totalEstimated := time.Duration(float64(elapsed) / overallProgress)
+		remaining := totalEstimated - elapsed
+		if remaining > 0 {
+			eta = fmt.Sprintf("%ds", int(remaining.Seconds()))
+		} else {
+			eta = "Almost done"
+		}
+	} else {
+		eta = "Calculating..."
+	}
+
+	rowsPerSecond := 0
+	if elapsed.Seconds() > 0 {
+		rowsPerSecond = int(float64(progress.RecordsProcessed) / elapsed.Seconds())
+	}
+
+	// Check for progress stalls
+	if progress.RecordsProcessed == *lastRecordsProcessed {
+		*stuckCount++
+		if *stuckCount >= 5 { // 10 seconds without progress
+			log.Warn("Progress appears stalled", "testID", testID, "stuckCount", *stuckCount)
+		}
+	} else {
+		*stuckCount = 0
+		*lastRecordsProcessed = progress.RecordsProcessed
+	}
+
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":           "insertion",
+		"overallProgress": 85 + (15 * overallProgress),
+		"phaseProgress":   phaseProgress,
+		"currentPhase":    "Ludicrous Speed Insertion",
+		"rowsProcessed":   progress.RecordsProcessed,
+		"rowsPerSecond":   rowsPerSecond,
+		"eta":             eta,
+		"isStalled":       *stuckCount >= 5,
+		"message": fmt.Sprintf(
+			"Ludicrous speed: %d/%d records (%d batches)",
+			progress.RecordsProcessed,
+			progress.TotalRecords,
+			progress.BatchesProcessed,
+		),
+	})
+}
+
+func (c *LudicrousOnlyController) sendHeartbeat(
+	progress *Progress,
+	testID string,
+	lastRecordsProcessed *int,
+	stuckCount *int,
+) {
+	log := c.log.Function("sendHeartbeat")
+	
+	progress.mu.RLock()
+	currentRecords := progress.RecordsProcessed
+	totalRecords := progress.TotalRecords
+	elapsed := time.Since(progress.StartTime)
+	progress.mu.RUnlock()
+
+	// Check if we're truly stuck
+	if currentRecords == *lastRecordsProcessed {
+		*stuckCount++
+		log.Warn("Heartbeat: No progress detected", 
+			"testID", testID, 
+			"stuckDuration", (*stuckCount)*10, 
+			"currentRecords", currentRecords)
+	} else {
+		if *stuckCount > 0 {
+			log.Info("Heartbeat: Progress resumed", "testID", testID, "currentRecords", currentRecords)
+		}
+		*stuckCount = 0
+		*lastRecordsProcessed = currentRecords
+	}
+
+	// Send heartbeat message
+	c.wsManager.SendLoadTestProgress(testID, map[string]any{
+		"phase":           "insertion",
+		"currentPhase":    "Ludicrous Speed Insertion",
+		"rowsProcessed":   currentRecords,
+		"totalRecords":    totalRecords,
+		"elapsed":         int(elapsed.Seconds()),
+		"isHeartbeat":     true,
+		"isStalled":       *stuckCount >= 3, // 30 seconds
+		"message": fmt.Sprintf(
+			"Heartbeat: Processing %d/%d records (alive for %ds)",
+			currentRecords,
+			totalRecords,
+			int(elapsed.Seconds()),
+		),
+	})
 }
 
 // updateLoadTestError updates load test with error information for ludicrous speed method

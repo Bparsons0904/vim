@@ -393,6 +393,46 @@ func (m *Manager) sendToAuthenticatedClients(message Message) {
 	log.Info("Message sent to authenticated clients", "messageID", message.ID, "clientCount", sent)
 }
 
+func (m *Manager) sendToAuthenticatedClientsWithHealthCheck(message Message) int {
+	log := m.log.Function("sendToAuthenticatedClientsWithHealthCheck")
+
+	sent := 0
+	disconnected := 0
+	var clientsToRemove []*Client
+	
+	for _, client := range m.hub.clients {
+		if client.Status == STATUS_AUTHENTICATED {
+			// Health check: try to send with timeout
+			select {
+			case client.send <- message:
+				sent++
+			case <-time.After(2 * time.Second):
+				log.Warn("Client not responding, marking for removal", "clientID", client.ID)
+				clientsToRemove = append(clientsToRemove, client)
+				disconnected++
+			default:
+				log.Warn("Client send channel full, marking for removal", "clientID", client.ID)
+				clientsToRemove = append(clientsToRemove, client)
+				disconnected++
+			}
+		}
+	}
+
+	// Remove unhealthy clients
+	for _, client := range clientsToRemove {
+		go func(c *Client) {
+			m.hub.unregister <- c
+		}(client)
+	}
+
+	if disconnected > 0 {
+		log.Warn("Removed unhealthy clients", "messageID", message.ID, "removed", disconnected)
+	}
+
+	log.Info("Health check complete", "messageID", message.ID, "sent", sent, "removed", disconnected)
+	return sent
+}
+
 func (m *Manager) subscribeToCacheInvalidationEvents() {
 	log := m.log.Function("subscribeToCacheInvalidationEvents")
 	log.Info("Starting cache invalidation events subscription")
@@ -513,9 +553,13 @@ func (m *Manager) SendLoadTestProgress(testID string, data map[string]any) {
 
 	message.Data["testId"] = testID
 
-	m.sendToAuthenticatedClients(message)
-
-	log.Info("Load test progress sent", "testId", testID, "messageID", message.ID)
+	sent := m.sendToAuthenticatedClientsWithHealthCheck(message)
+	
+	if sent == 0 {
+		log.Warn("No healthy clients available for load test progress", "testId", testID, "messageID", message.ID)
+	} else {
+		log.Info("Load test progress sent", "testId", testID, "messageID", message.ID, "clientCount", sent)
+	}
 }
 
 // SendLoadTestComplete sends load test completion notification to authenticated clients
@@ -533,9 +577,13 @@ func (m *Manager) SendLoadTestComplete(testID string, testResult map[string]any)
 
 	message.Data["testId"] = testID
 
-	m.sendToAuthenticatedClients(message)
+	sent := m.sendToAuthenticatedClientsWithHealthCheck(message)
 
-	log.Info("Load test completion sent", "testId", testID, "messageID", message.ID)
+	if sent == 0 {
+		log.Warn("No healthy clients available for load test completion", "testId", testID, "messageID", message.ID)
+	} else {
+		log.Info("Load test completion sent", "testId", testID, "messageID", message.ID, "clientCount", sent)
+	}
 }
 
 // SendLoadTestError sends load test error notification to authenticated clients
@@ -554,7 +602,11 @@ func (m *Manager) SendLoadTestError(testID string, errorMsg string) {
 		Timestamp: time.Now(),
 	}
 
-	m.sendToAuthenticatedClients(message)
+	sent := m.sendToAuthenticatedClientsWithHealthCheck(message)
 
-	log.Info("Load test error sent", "testId", testID, "messageID", message.ID, "error", errorMsg)
+	if sent == 0 {
+		log.Warn("No healthy clients available for load test error", "testId", testID, "messageID", message.ID)
+	} else {
+		log.Info("Load test error sent", "testId", testID, "messageID", message.ID, "error", errorMsg, "clientCount", sent)
+	}
 }
