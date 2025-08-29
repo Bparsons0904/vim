@@ -560,7 +560,7 @@ func scaleCSVFileByDoublingWithProgress(ctx context.Context, basePath, finalPath
 		multiplier++
 		
 		// Safety check to prevent infinite loop
-		if multiplier > 20 {
+		if multiplier > 30 {
 			break
 		}
 	}
@@ -636,7 +636,7 @@ func scaleCSVFileByDoubling(ctx context.Context, basePath, finalPath string, bas
 		multiplier++
 		
 		// Safety check to prevent infinite loop
-		if multiplier > 20 {
+		if multiplier > 30 {
 			break
 		}
 	}
