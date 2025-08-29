@@ -99,6 +99,18 @@ func (c *OptimizedOnlyController) processLoadTest(ctx context.Context, loadTest 
 		DateColumns: loadTest.DateColumns,
 		FilePrefix:  "optimized_test",
 		Context:     ctx,
+		ProgressCallback: func(phase string, progress float64, message string) {
+			c.wsManager.SendLoadTestProgress(testID, map[string]any{
+				"phase":           "csv_generation",
+				"overallProgress": int(progress * 0.25), // CSV generation is 0-25% of overall progress
+				"phaseProgress":   progress,
+				"currentPhase":    "Generating CSV Data (Optimized)",
+				"rowsProcessed":   0,
+				"rowsPerSecond":   0,
+				"eta":             "Calculating...",
+				"message":         message,
+			})
+		},
 	}
 	csvResult, err := utils.GeneratePerformanceCSV(csvConfig)
 	if err != nil {

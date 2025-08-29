@@ -13,14 +13,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// CSVProgressCallback is a function type for CSV generation progress updates
+type CSVProgressCallback func(phase string, progress float64, message string)
+
 // CSVGenerationConfig holds configuration for CSV generation
 type CSVGenerationConfig struct {
-	LoadTestID   uuid.UUID
-	Rows         int
-	DateColumns  int
-	TempDir      string
-	FilePrefix   string
-	Context      context.Context
+	LoadTestID       uuid.UUID
+	Rows             int
+	DateColumns      int
+	TempDir          string
+	FilePrefix       string
+	Context          context.Context
+	ProgressCallback CSVProgressCallback // Optional progress callback
 }
 
 // CSVGenerationResult holds the result of CSV generation
@@ -115,6 +119,11 @@ var meaningfulColumns = []string{
 func GeneratePerformanceCSVWithDuplication(config CSVGenerationConfig) (CSVGenerationResult, error) {
 	startTime := time.Now()
 
+	// Send initial progress
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 0, "Starting optimized CSV generation with duplication...")
+	}
+
 	// Calculate optimal base size to minimize truncation waste
 	baseRows := calculateOptimalBaseSize(config.Rows)
 	
@@ -137,13 +146,19 @@ func GeneratePerformanceCSVWithDuplication(config CSVGenerationConfig) (CSVGener
 	finalCsvPath := filepath.Join(tempDir, prefix+"_"+config.LoadTestID.String()+".csv")
 
 	// Step 1: Generate optimized base dataset
-	_, err := generateOptimizedBaseCSV(config.Context, baseCsvPath, baseRows)
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 10, fmt.Sprintf("Generating base dataset (%d rows)...", baseRows))
+	}
+	_, err := generateOptimizedBaseCSVWithProgress(config.Context, baseCsvPath, baseRows, config.ProgressCallback)
 	if err != nil {
 		return CSVGenerationResult{}, fmt.Errorf("failed to generate base CSV: %w", err)
 	}
 
 	// Step 2: Scale up using file doubling strategy
-	_, err = scaleCSVFileByDoubling(config.Context, baseCsvPath, finalCsvPath, baseRows, config.Rows)
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 50, fmt.Sprintf("Scaling to %d rows using duplication...", config.Rows))
+	}
+	_, err = scaleCSVFileByDoublingWithProgress(config.Context, baseCsvPath, finalCsvPath, baseRows, config.Rows, config.ProgressCallback)
 	if err != nil {
 		return CSVGenerationResult{}, fmt.Errorf("failed to scale CSV file: %w", err)
 	}
@@ -152,6 +167,11 @@ func GeneratePerformanceCSVWithDuplication(config CSVGenerationConfig) (CSVGener
 	if err := os.Remove(baseCsvPath); err != nil {
 		// Non-fatal error, just log it
 		fmt.Printf("Warning: Failed to cleanup base CSV file: %v\n", err)
+	}
+
+	// Send completion progress
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 100, fmt.Sprintf("CSV generation complete: %d rows", config.Rows))
 	}
 
 	totalTime := int(time.Since(startTime).Milliseconds())
@@ -174,6 +194,11 @@ func GeneratePerformanceCSV(config CSVGenerationConfig) (CSVGenerationResult, er
 // generateDirectCSV creates CSV directly without duplication (for smaller datasets)
 func generateDirectCSV(config CSVGenerationConfig) (CSVGenerationResult, error) {
 	startTime := time.Now()
+
+	// Send initial progress
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 0, "Starting CSV generation...")
+	}
 
 	// Randomly select date columns to populate
 	selectedDateColumns := selectRandomDateColumns(allDateColumns, config.DateColumns)
@@ -229,6 +254,12 @@ func generateDirectCSV(config CSVGenerationConfig) (CSVGenerationResult, error) 
 		allDateColumnMap[col] = true
 	}
 
+	// Progress tracking variables
+	progressInterval := config.Rows / 20 // Update progress 20 times
+	if progressInterval < 1000 {
+		progressInterval = 1000 // At least every 1000 rows
+	}
+
 	// Generate data rows with high-performance optimizations
 	for i := 0; i < config.Rows; i++ {
 		// Check for cancellation every 10,000 rows for better performance
@@ -240,10 +271,22 @@ func generateDirectCSV(config CSVGenerationConfig) (CSVGenerationResult, error) 
 			}
 		}
 
+		// Send progress updates
+		if config.ProgressCallback != nil && i > 0 && i%progressInterval == 0 {
+			progress := float64(i) / float64(config.Rows) * 100
+			message := fmt.Sprintf("Generated %d/%d rows", i, config.Rows)
+			config.ProgressCallback("csv_generation", progress, message)
+		}
+
 		row := generatePerformanceDataRow(allColumns, selectedDateColumnMap, allDateColumnMap, rng)
 		if err := writer.Write(row); err != nil {
 			return CSVGenerationResult{}, fmt.Errorf("failed to write row %d: %w", i, err)
 		}
+	}
+
+	// Send completion progress
+	if config.ProgressCallback != nil {
+		config.ProgressCallback("csv_generation", 100, fmt.Sprintf("CSV generation complete: %d rows", config.Rows))
 	}
 
 	generationTime := int(time.Since(startTime).Milliseconds())
@@ -366,6 +409,176 @@ func generateOptimizedBaseCSV(ctx context.Context, csvPath string, rows int) (in
 		}
 	}
 
+	return int(time.Since(startTime).Milliseconds()), nil
+}
+
+// generateOptimizedBaseCSVWithProgress creates the initial base CSV file with progress tracking
+func generateOptimizedBaseCSVWithProgress(ctx context.Context, csvPath string, rows int, progressCallback CSVProgressCallback) (int, error) {
+	startTime := time.Now()
+	
+	file, err := os.Create(csvPath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create base CSV file: %w", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write headers - combine all date and meaningful columns
+	var headers []string
+	headers = append(headers, allDateColumns...)
+	headers = append(headers, meaningfulColumns...)
+
+	// Shuffle headers for variety
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng.Shuffle(len(headers), func(i, j int) {
+		headers[i], headers[j] = headers[j], headers[i]
+	})
+
+	if err := writer.Write(headers); err != nil {
+		return 0, fmt.Errorf("failed to write headers: %w", err)
+	}
+
+	// Pre-compute maps for performance (populate all date columns for base)
+	allDateColumnMap := make(map[string]bool)
+	for _, col := range allDateColumns {
+		allDateColumnMap[col] = true
+	}
+
+	// Progress tracking for base generation
+	progressInterval := rows / 10 // Update progress 10 times during base generation
+	if progressInterval < 500 {
+		progressInterval = 500 // At least every 500 rows
+	}
+
+	// Generate rows with high variety for effective duplication
+	for i := 0; i < rows; i++ {
+		// Check for cancellation periodically
+		if ctx != nil && i > 0 && i%1000 == 0 {
+			select {
+			case <-ctx.Done():
+				return 0, fmt.Errorf("base CSV generation cancelled: %w", ctx.Err())
+			default:
+			}
+		}
+
+		// Send progress updates for base generation (10-40% of total)
+		if progressCallback != nil && i > 0 && i%progressInterval == 0 {
+			baseProgress := float64(i) / float64(rows) * 30 // Base generation is 30% of total
+			totalProgress := 10 + baseProgress // Start at 10%, go to 40%
+			message := fmt.Sprintf("Base generation: %d/%d rows", i, rows)
+			progressCallback("csv_generation", totalProgress, message)
+		}
+
+		row := generatePerformanceDataRow(headers, allDateColumnMap, allDateColumnMap, rng)
+		if err := writer.Write(row); err != nil {
+			return 0, fmt.Errorf("failed to write row %d: %w", i, err)
+		}
+	}
+
+	return int(time.Since(startTime).Milliseconds()), nil
+}
+
+// scaleCSVFileByDoublingWithProgress scales up CSV content using file doubling strategy with progress updates
+func scaleCSVFileByDoublingWithProgress(ctx context.Context, basePath, finalPath string, baseRows, targetRows int, progressCallback CSVProgressCallback) (int, error) {
+	startTime := time.Now()
+	
+	if targetRows <= baseRows {
+		// No scaling needed, just copy the file
+		if progressCallback != nil {
+			progressCallback("csv_generation", 90, "No scaling needed, copying file...")
+		}
+		return copyFile(basePath, finalPath)
+	}
+	
+	// Read the base file content (excluding headers)
+	if progressCallback != nil {
+		progressCallback("csv_generation", 45, "Reading base CSV content...")
+	}
+	baseContent, headers, err := readCSVContent(basePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read base CSV: %w", err)
+	}
+	
+	// Calculate how many times we need to duplicate
+	currentRows := baseRows
+	multiplier := 1
+	
+	// Build the final content by doubling
+	finalContent := make([][]string, 0, targetRows)
+	finalContent = append(finalContent, baseContent...)
+	
+	// Calculate total doubling iterations needed for progress tracking
+	totalIterations := 0
+	tempRows := baseRows
+	for tempRows < targetRows {
+		tempRows *= 2
+		totalIterations++
+	}
+
+	iteration := 0
+	
+	// Double the content until we have enough rows
+	for currentRows < targetRows {
+		// Check for cancellation
+		if ctx != nil {
+			select {
+			case <-ctx.Done():
+				return 0, fmt.Errorf("CSV scaling cancelled: %w", ctx.Err())
+			default:
+			}
+		}
+		
+		iteration++
+		
+		// Send progress updates for scaling (50-90% of total)
+		if progressCallback != nil {
+			scaleProgress := float64(iteration) / float64(totalIterations) * 40 // Scaling is 40% of total
+			totalProgress := 50 + scaleProgress // Start at 50%, go to 90%
+			message := fmt.Sprintf("Scaling iteration %d/%d (rows: %d)", iteration, totalIterations, currentRows*2)
+			progressCallback("csv_generation", totalProgress, message)
+		}
+		
+		// Double the existing content
+		contentToAdd := make([][]string, len(finalContent))
+		copy(contentToAdd, finalContent)
+		
+		// Add some variation to avoid exact duplicates
+		rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(multiplier)))
+		for i := range contentToAdd {
+			// Slightly modify some fields to add variety (e.g., increment numbers)
+			for j, cell := range contentToAdd[i] {
+				if len(cell) > 0 && isNumericField(headers[j]) {
+					contentToAdd[i][j] = addVariationToNumericField(cell, rng)
+				}
+			}
+		}
+		
+		finalContent = append(finalContent, contentToAdd...)
+		currentRows = len(finalContent)
+		multiplier++
+		
+		// Safety check to prevent infinite loop
+		if multiplier > 20 {
+			break
+		}
+	}
+	
+	// Truncate to exact target size
+	if len(finalContent) > targetRows {
+		finalContent = finalContent[:targetRows]
+	}
+	
+	// Write the final file
+	if progressCallback != nil {
+		progressCallback("csv_generation", 95, "Writing final CSV file...")
+	}
+	err = writeCSVContent(finalPath, headers, finalContent)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write scaled CSV: %w", err)
+	}
+	
 	return int(time.Since(startTime).Milliseconds()), nil
 }
 
