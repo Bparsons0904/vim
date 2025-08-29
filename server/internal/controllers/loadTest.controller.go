@@ -288,14 +288,23 @@ func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *Load
 		"message":         "Starting CSV generation...",
 	})
 
-	// Step 1: Generate CSV file
-	csvPath, csvGenTime, err := c.generateCSVFileWithProgress(loadTest)
-	defer os.Remove(csvPath)
+	// Step 1: Generate CSV file using shared utility
+	csvConfig := utils.CSVGenerationConfig{
+		LoadTestID:  loadTest.ID,
+		Rows:        loadTest.Rows,
+		DateColumns: loadTest.DateColumns,
+		FilePrefix:  "load_test",
+		Context:     ctx,
+	}
+	csvResult, err := utils.GeneratePerformanceCSV(csvConfig)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV generation failed", err)
 		c.wsManager.SendLoadTestError(testID, "CSV generation failed: "+err.Error())
 		return
 	}
+	csvPath := csvResult.FilePath
+	csvGenTime := csvResult.GenerationTime
+	defer os.Remove(csvPath)
 
 	if loadTest.Method == "plaid" {
 		// Go directly to plaid COPY streaming insertion

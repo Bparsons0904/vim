@@ -119,13 +119,22 @@ func (c *LudicrousOnlyController) processLoadTest(ctx context.Context, loadTest 
 		"message":         "Starting CSV generation for ludicrous speed method...",
 	})
 
-	// Step 1: Generate CSV file
-	csvPath, csvGenTime, err := c.generateLudicrousCSVFile(processCtx, loadTest)
+	// Step 1: Generate CSV file using shared utility
+	csvConfig := utils.CSVGenerationConfig{
+		LoadTestID:  loadTest.ID,
+		Rows:        loadTest.Rows,
+		DateColumns: loadTest.DateColumns,
+		FilePrefix:  "ludicrous_test",
+		Context:     processCtx,
+	}
+	csvResult, err := utils.GeneratePerformanceCSV(csvConfig)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV generation failed", err)
 		c.wsManager.SendLoadTestError(testID, "CSV generation failed: "+err.Error())
 		return
 	}
+	csvPath := csvResult.FilePath
+	csvGenTime := csvResult.GenerationTime
 	
 	// Check for cancellation after CSV generation
 	select {

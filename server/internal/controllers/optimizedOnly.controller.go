@@ -92,13 +92,22 @@ func (c *OptimizedOnlyController) processLoadTest(ctx context.Context, loadTest 
 		"message":          "Starting CSV generation for optimized method...",
 	})
 
-	// Step 1: Generate CSV file
-	csvPath, csvGenTime, err := c.generateOptimizedCSVFile(loadTest)
+	// Step 1: Generate CSV file using shared utility
+	csvConfig := utils.CSVGenerationConfig{
+		LoadTestID:  loadTest.ID,
+		Rows:        loadTest.Rows,
+		DateColumns: loadTest.DateColumns,
+		FilePrefix:  "optimized_test",
+		Context:     ctx,
+	}
+	csvResult, err := utils.GeneratePerformanceCSV(csvConfig)
 	if err != nil {
 		c.updateLoadTestError(ctx, loadTest, "CSV generation failed", err)
 		c.wsManager.SendLoadTestError(testID, "CSV generation failed: "+err.Error())
 		return
 	}
+	csvPath := csvResult.FilePath
+	csvGenTime := csvResult.GenerationTime
 
 	// Step 2: Optimized streaming insertion
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{

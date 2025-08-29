@@ -222,4 +222,4 @@ All environment variables in `.env` at project root, shared between services.
 - Use `tilt trigger migrate-up` for database initialization
 - Seed data available via `tilt trigger migrate-seed`
 - No traditional SQL migrations - database schema managed through GORM models
-
+- Do not write test for this project unless asked
