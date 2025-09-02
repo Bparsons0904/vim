@@ -2,7 +2,7 @@ import { Component, Show, createMemo } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
 import { TestHistory } from "./components/TestHistory";
 import { PerformanceSummary as PerformanceSummaryComponent } from "./components/PerformanceSummary";
-import { usePerformanceSummary } from "@services/api/hooks/loadtest.hooks";
+import { usePerformanceSummary, useOverallSummary } from "@services/api/hooks/loadtest.hooks";
 import styles from "./ResultsDashboard.module.scss";
 import { LoadTestResult } from "./LoadTest";
 import { ApiClientError, NetworkError } from "@services/api/apiTypes";
@@ -16,6 +16,7 @@ interface ResultsDashboardProps {
 
 export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
   const performanceSummaryQuery = usePerformanceSummary();
+  const overallSummaryQuery = useOverallSummary();
   
   const completedTests = createMemo(() => 
     props.testHistory.filter(test => test.status === 'completed')
@@ -179,39 +180,33 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
       </Show>
 
       {/* Performance Summary */}
-      <Show when={completedTests().length > 0}>
+      <Show when={overallSummaryQuery.data?.overallSummary && overallSummaryQuery.data.overallSummary.testsCompleted > 0}>
         <Card class={styles.summaryCard}>
           <h2>Performance Summary</h2>
           <div class={styles.summaryGrid}>
             <div class={styles.summaryItem}>
               <h3>Tests Completed</h3>
-              <div class={styles.summaryValue}>{completedTests().length}</div>
+              <div class={styles.summaryValue}>{overallSummaryQuery.data!.overallSummary.testsCompleted}</div>
             </div>
             
-            <Show when={getBestPerformance()}>
-              <div class={styles.summaryItem}>
-                <h3>Best Performance</h3>
-                <div class={styles.summaryValue}>
-                  {formatRate(getBestPerformance()!.rows, (getBestPerformance()!.parseTime || 0) + (getBestPerformance()!.insertTime || 0))}
-                </div>
+            <div class={styles.summaryItem}>
+              <h3>Best Performance</h3>
+              <div class={styles.summaryValue}>
+                {overallSummaryQuery.data!.overallSummary.bestPerformanceRate.toLocaleString()} rows/sec
               </div>
-            </Show>
+            </div>
             
-            <Show when={getAveragePerformance()}>
-              <div class={styles.summaryItem}>
-                <h3>Average Rate</h3>
-                <div class={styles.summaryValue}>
-                  {getAveragePerformance()!.avgRate.toLocaleString()} rows/sec
-                </div>
+            <div class={styles.summaryItem}>
+              <h3>Average Rate</h3>
+              <div class={styles.summaryValue}>
+                {overallSummaryQuery.data!.overallSummary.averageRate.toLocaleString()} rows/sec
               </div>
-            </Show>
+            </div>
             
-            <Show when={completedTests().length > 0}>
-              <div class={styles.summaryItem}>
-                <h3>Total Rows</h3>
-                <div class={styles.summaryValue}>{getTotalRowsProcessed()}M</div>
-              </div>
-            </Show>
+            <div class={styles.summaryItem}>
+              <h3>Total Rows</h3>
+              <div class={styles.summaryValue}>{overallSummaryQuery.data!.overallSummary.totalRowsMillions.toFixed(1)}M</div>
+            </div>
           </div>
         </Card>
       </Show>

@@ -30,6 +30,7 @@ func (h *LoadTestHandler) Register() {
 	loadTests := h.router.Group("/load-tests")
 	loadTests.Post("/", h.createLoadTest)
 	loadTests.Get("/performance-summary", h.getPerformanceSummary)
+	loadTests.Get("/overall-summary", h.getOverallSummary)
 	loadTests.Get("/:id", h.getLoadTest)
 	loadTests.Get("/", h.getLoadTests)
 }
@@ -97,4 +98,17 @@ func (h *LoadTestHandler) getPerformanceSummary(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "success", "performanceSummary": summary})
+}
+
+func (h *LoadTestHandler) getOverallSummary(c *fiber.Ctx) error {
+	log := h.log.Function("getOverallSummary")
+
+	summary, err := h.controller.GetOverallSummary(c.Context())
+	if err != nil {
+		log.Er("failed to get overall summary", err)
+		return c.Status(fiber.StatusInternalServerError).
+			JSON(fiber.Map{"message": "failed to get overall summary", "error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "success", "overallSummary": summary})
 }

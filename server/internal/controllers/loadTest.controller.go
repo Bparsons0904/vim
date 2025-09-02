@@ -271,6 +271,94 @@ func (c *LoadTestController) GetPerformanceSummary(
 	return summaries, nil
 }
 
+// OverallSummary represents comprehensive statistics across all completed tests
+type OverallSummary struct {
+	TestsCompleted      int     `json:"testsCompleted"`
+	BestPerformanceRate int     `json:"bestPerformanceRate"`  // rows/sec
+	BestPerformanceTest *string `json:"bestPerformanceTest"`  // test ID
+	AverageRate         int     `json:"averageRate"`          // rows/sec
+	TotalRowsProcessed  int64   `json:"totalRowsProcessed"`   // total rows across all tests
+	TotalRowsMillions   float64 `json:"totalRowsMillions"`    // total rows in millions
+}
+
+// GetOverallSummary retrieves comprehensive statistics across all completed tests
+func (c *LoadTestController) GetOverallSummary(
+	ctx context.Context,
+) (*OverallSummary, error) {
+	log := c.log.Function("GetOverallSummary")
+
+	// Get all completed load tests
+	allTests, err := c.loadTestRepo.GetAllForSummary(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get load tests: %w", err)
+	}
+
+	// Filter completed tests with valid timing data
+	var completedTests []*LoadTest
+	for _, test := range allTests {
+		if test.Status == "completed" && test.ParseTime != nil && test.InsertTime != nil &&
+			*test.ParseTime > 0 && *test.InsertTime > 0 {
+			completedTests = append(completedTests, test)
+		}
+	}
+
+	if len(completedTests) == 0 {
+		return &OverallSummary{}, nil
+	}
+
+	summary := &OverallSummary{
+		TestsCompleted: len(completedTests),
+	}
+
+	// Calculate performance rates and find best performance
+	var rates []int
+	var totalRows int64
+	var bestRate int
+	var bestTestID string
+
+	for _, test := range completedTests {
+		// Use parseTime + insertTime to exclude CSV generation time (as per existing logic)
+		processTime := *test.ParseTime + *test.InsertTime
+		if processTime > 0 {
+			rate := int(float64(test.Rows) / (float64(processTime) / 1000.0))
+			rates = append(rates, rate)
+			totalRows += int64(test.Rows)
+
+			// Track best performance
+			if rate > bestRate {
+				bestRate = rate
+				bestTestID = test.ID.String()
+			}
+		}
+	}
+
+	// Set best performance
+	if bestRate > 0 {
+		summary.BestPerformanceRate = bestRate
+		summary.BestPerformanceTest = &bestTestID
+	}
+
+	// Calculate average rate
+	if len(rates) > 0 {
+		sumRates := 0
+		for _, rate := range rates {
+			sumRates += rate
+		}
+		summary.AverageRate = sumRates / len(rates)
+	}
+
+	// Set total rows
+	summary.TotalRowsProcessed = totalRows
+	summary.TotalRowsMillions = float64(totalRows) / 1000000.0
+
+	log.Info("overall summary calculated",
+		"testsCompleted", summary.TestsCompleted,
+		"totalRows", totalRows,
+		"bestRate", bestRate)
+
+	return summary, nil
+}
+
 // processLoadTest handles the actual load test processing
 func (c *LoadTestController) processLoadTest(ctx context.Context, loadTest *LoadTest) {
 	log := c.log.Function("processLoadTest")

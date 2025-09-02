@@ -42,6 +42,20 @@ export interface GetPerformanceSummaryResponse {
   performanceSummary: PerformanceSummary[];
 }
 
+export interface OverallSummary {
+  testsCompleted: number;
+  bestPerformanceRate: number;
+  bestPerformanceTest?: string;
+  averageRate: number;
+  totalRowsProcessed: number;
+  totalRowsMillions: number;
+}
+
+export interface GetOverallSummaryResponse {
+  message: string;
+  overallSummary: OverallSummary;
+}
+
 // Start a new load test
 export const startLoadTest = async (config: LoadTestConfig): Promise<StartLoadTestResponse> => {
   return postApi<StartLoadTestResponse, StartLoadTestRequest>('load-tests', {
@@ -73,6 +87,11 @@ export const deleteLoadTest = async (testId: string): Promise<DeleteLoadTestResp
 // Get performance summary statistics grouped by test method
 export const getPerformanceSummary = async (): Promise<GetPerformanceSummaryResponse> => {
   return getApi<GetPerformanceSummaryResponse>('load-tests/performance-summary');
+};
+
+// Get overall summary statistics across all completed tests
+export const getOverallSummary = async (): Promise<GetOverallSummaryResponse> => {
+  return getApi<GetOverallSummaryResponse>('load-tests/overall-summary');
 };
 
 // WebSocket event types for real-time updates

@@ -6,6 +6,7 @@ import {
   getLoadTestHistory, 
   deleteLoadTest,
   getPerformanceSummary,
+  getOverallSummary,
   StartLoadTestResponse,
   GetLoadTestResponse,
   DeleteLoadTestResponse
@@ -44,6 +45,15 @@ export const usePerformanceSummary = () => {
   return useQuery(() => ({
     queryKey: ['performance-summary'],
     queryFn: () => getPerformanceSummary(),
+    staleTime: 10 * 60 * 1000, // 10 minutes - summary data changes less frequently
+  }));
+};
+
+// Query hook for getting overall summary statistics
+export const useOverallSummary = () => {
+  return useQuery(() => ({
+    queryKey: ['overall-summary'],
+    queryFn: () => getOverallSummary(),
     staleTime: 10 * 60 * 1000, // 10 minutes - summary data changes less frequently
   }));
 };
@@ -148,6 +158,11 @@ export const useLoadTestWebSocketUpdates = () => {
     // Invalidate performance summary since new completed test affects statistics
     queryClient.invalidateQueries({ 
       queryKey: ['performance-summary'] 
+    });
+
+    // Invalidate overall summary since new completed test affects statistics
+    queryClient.invalidateQueries({ 
+      queryKey: ['overall-summary'] 
     });
   };
 
