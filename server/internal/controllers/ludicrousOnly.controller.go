@@ -22,6 +22,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// getMemStats returns current memory statistics for debugging
+func getMemStats() map[string]interface{} {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return map[string]interface{}{
+		"allocMB":      m.Alloc / 1024 / 1024,
+		"totalAllocMB": m.TotalAlloc / 1024 / 1024,
+		"sysMB":        m.Sys / 1024 / 1024,
+		"numGC":        m.NumGC,
+	}
+}
+
 type LudicrousOnlyController struct {
 	loadTestRepo repositories.LoadTestRepository
 	testDataRepo repositories.TestDataRepository
@@ -596,10 +608,10 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 ) (LudicrousTimingResult, error) {
 	log := c.log.Function("insertLudicrousStreaming")
 
-	// Ludicrous speed configuration - maximize performance
+	// Ludicrous speed configuration - back to proven settings
 	numWorkers := runtime.NumCPU() * 2 // Double the workers
-	batchSize := 2000                  // Larger batches
-	bufferSize := numWorkers * 8       // Larger buffer
+	batchSize := 2000                  // Back to working batch size
+	bufferSize := numWorkers * 4       // Keep buffer at 4x workers to avoid overload
 
 	log.Info("Starting ludicrous speed streaming insertion",
 		"totalRecords", totalRecords,
@@ -636,44 +648,80 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 		go c.ludicrousWorker(ctx, i, batchChan, errorChan, progress, batchSize, &workerWG)
 	}
 
-	// Start CSV parser
+	// Start CSV parser with cancellation context
 	parserDone := make(chan error, 1)
+	parserCtx, cancelParser := context.WithCancel(ctx)
+	defer cancelParser()
+	
 	parseStartTime := time.Now()
-	go c.parseLudicrousCSVStreaming(file, loadTestID, batchChan, parserDone, batchSize)
+	go c.parseLudicrousCSVStreaming(file, loadTestID, batchChan, parserDone, batchSize, parserCtx)
 
 	// Wait for parser or worker errors with comprehensive error handling
 	var parseErr error
 	var allErrors []error
 	
+	log.Info("Starting parser-worker coordination loop")
+	
 	// Wait for parser with timeout
 	parseComplete := false
+	lastProgressUpdate := time.Now()
+	
 	for !parseComplete {
 		select {
 		case parseErr = <-parserDone:
+			log.Info("Parser completed", "parseErr", parseErr)
 			parseComplete = true
 			if parseErr != nil {
 				allErrors = append(allErrors, fmt.Errorf("CSV parsing failed: %w", parseErr))
 			}
 		case workerErr := <-errorChan:
+			log.Info("Received worker result", "workerErr", workerErr)
 			if workerErr != nil {
 				allErrors = append(allErrors, fmt.Errorf("worker failed: %w", workerErr))
 			}
 		case <-ctx.Done():
+			log.Warn("Context cancelled during coordination", "contextErr", ctx.Err())
 			allErrors = append(allErrors, fmt.Errorf("operation cancelled: %w", ctx.Err()))
 			parseComplete = true
-		case <-time.After(10 * time.Minute):
-			allErrors = append(allErrors, fmt.Errorf("parsing timeout exceeded"))
-			parseComplete = true
+		case <-time.After(10 * time.Second): // More frequent heartbeat checks
+			// Check if we're making progress
+			progress.mu.RLock()
+			currentProgress := progress.RecordsProcessed
+			progress.mu.RUnlock()
+			
+			// Check for stall without excessive logging
+			if currentProgress > 0 {
+				lastProgressUpdate = time.Now()
+			}
+			
+			// If no progress for 2 minutes, consider it stuck
+			if time.Since(lastProgressUpdate) > 2*time.Minute {
+				log.Error("Parser coordination timeout - no progress detected")
+				allErrors = append(allErrors, fmt.Errorf("coordination timeout - no progress for 2 minutes"))
+				parseComplete = true
+			}
 		}
 		
 		// If we have critical errors, stop immediately
 		if len(allErrors) > 0 {
+			log.Warn("Critical errors detected, breaking coordination loop", "errorCount", len(allErrors))
 			break
 		}
 	}
 	
 	// Handle any accumulated errors
 	if len(allErrors) > 0 {
+		log.Warn("Cancelling parser due to errors", "errorCount", len(allErrors))
+		cancelParser() // Cancel the parser context to prevent channel panic
+		
+		// Wait a brief moment for parser to shut down gracefully
+		select {
+		case <-time.After(500 * time.Millisecond):
+			log.Info("Parser shutdown timeout, closing channel")
+		case <-parserDone:
+			log.Info("Parser shut down gracefully")
+		}
+		
 		close(batchChan)
 		progressDone <- true
 		
@@ -711,14 +759,22 @@ func (c *LudicrousOnlyController) insertLudicrousStreaming(
 
 	totalParseInsertTime := int(time.Since(startTime).Milliseconds())
 
-	// Send final progress update
+	// Send final progress update with safe calculation
+	finalRowsPerSec := 0
+	if totalParseInsertTime > 0 && progress.RecordsProcessed > 0 {
+		rate := float64(progress.RecordsProcessed) / (float64(totalParseInsertTime) / 1000)
+		if rate > 0 && rate < 1000000 {
+			finalRowsPerSec = int(rate)
+		}
+	}
+	
 	c.wsManager.SendLoadTestProgress(testID, map[string]any{
 		"phase":           "insertion",
 		"overallProgress": 100,
 		"phaseProgress":   100,
 		"currentPhase":    "Ludicrous Speed Complete",
 		"rowsProcessed":   progress.RecordsProcessed,
-		"rowsPerSecond":   int(float64(progress.RecordsProcessed) / (float64(totalParseInsertTime) / 1000)),
+		"rowsPerSecond":   finalRowsPerSec,
 		"eta":             "Done",
 		"message": fmt.Sprintf(
 			"Successfully inserted %d records using ludicrous speed",
@@ -747,12 +803,16 @@ func (c *LudicrousOnlyController) parseLudicrousCSVStreaming(
 	batchChan chan<- *BatchData,
 	done chan<- error,
 	batchSize int,
+	ctx context.Context,
 ) {
+	log := c.log.Function("parseLudicrousCSVStreaming")
+	
 	reader := csv.NewReader(file)
 
 	// Read header
 	headers, err := reader.Read()
 	if err != nil {
+		log.Error("Failed to read CSV headers", "error", err)
 		done <- fmt.Errorf("failed to read CSV headers: %w", err)
 		return
 	}
@@ -803,16 +863,30 @@ func (c *LudicrousOnlyController) parseLudicrousCSVStreaming(
 
 	currentBatch := make([]*TestData, 0, batchSize)
 	batchNum := 0
+	rowsRead := 0
 
 	for {
+		// Check for cancellation before reading each row
+		select {
+		case <-ctx.Done():
+			log.Warn("CSV parser cancelled", "rowsRead", rowsRead)
+			done <- fmt.Errorf("CSV parsing cancelled: %w", ctx.Err())
+			return
+		default:
+		}
+		
 		row, err := reader.Read()
 		if err != nil {
 			if err.Error() == "EOF" {
+				log.Info("Reached end of CSV file", "totalRowsRead", rowsRead, "finalBatchNum", batchNum)
 				break
 			}
+			log.Error("Failed to read CSV row", "rowsRead", rowsRead, "error", err)
 			done <- fmt.Errorf("failed to read CSV row: %w", err)
 			return
 		}
+		
+		rowsRead++
 
 		testData := &TestData{
 			// Let database handle ID generation automatically
@@ -834,7 +908,27 @@ func (c *LudicrousOnlyController) parseLudicrousCSVStreaming(
 				Records:  currentBatch,
 				BatchNum: batchNum,
 			}
-			batchChan <- batchData
+			
+			// Send batch with context awareness
+			select {
+			case batchChan <- batchData:
+				// Batch sent successfully
+			case <-ctx.Done():
+				log.Warn("Context cancelled while sending batch", "batchNum", batchNum)
+				done <- fmt.Errorf("batch send cancelled: %w", ctx.Err())
+				return
+			default:
+				// Channel full, wait with context
+				select {
+				case batchChan <- batchData:
+					// Batch sent after wait
+				case <-ctx.Done():
+					log.Warn("Context cancelled while waiting to send batch", "batchNum", batchNum)
+					done <- fmt.Errorf("batch send cancelled during wait: %w", ctx.Err())
+					return
+				}
+			}
+			
 			currentBatch = make([]*TestData, 0, batchSize)
 			batchNum++
 		}
@@ -846,9 +940,17 @@ func (c *LudicrousOnlyController) parseLudicrousCSVStreaming(
 			Records:  currentBatch,
 			BatchNum: batchNum,
 		}
-		batchChan <- batchData
+		select {
+		case batchChan <- batchData:
+			// Final batch sent successfully
+		case <-ctx.Done():
+			log.Warn("Context cancelled while sending final batch", "batchNum", batchNum)
+			done <- fmt.Errorf("final batch send cancelled: %w", ctx.Err())
+			return
+		}
 	}
 
+	// CSV parsing completed
 	done <- nil
 }
 
@@ -862,21 +964,41 @@ func (c *LudicrousOnlyController) ludicrousWorker(
 	wg *sync.WaitGroup,
 ) {
 	defer wg.Done()
+	log := c.log.Function("ludicrousWorker").With("workerID", workerID)
 
 	// Get the underlying SQL connection
 	gormDB := c.db.SQLWithContext(ctx)
 	sqlDB, err := gormDB.DB()
 	if err != nil {
+		log.Error("Failed to get SQL DB connection", "error", err)
 		errorChan <- fmt.Errorf("ludicrous worker %d failed to get SQL DB: %w", workerID, err)
 		return
 	}
 
+	batchesProcessed := 0
+	
 	for batch := range batchChan {
+		// Check context before processing
+		select {
+		case <-ctx.Done():
+			log.Warn("Worker context cancelled", "batchesProcessed", batchesProcessed)
+			errorChan <- fmt.Errorf("worker %d context cancelled after %d batches: %w", workerID, batchesProcessed, ctx.Err())
+			return
+		default:
+		}
+
 		err := c.insertBatchWithRawSQLLudicrous(ctx, sqlDB, batch.Records)
+		
 		if err != nil {
+			log.Error("Batch insert failed", 
+				"batchNum", batch.BatchNum, 
+				"records", len(batch.Records),
+				"error", err)
 			errorChan <- fmt.Errorf("ludicrous worker %d failed to insert batch %d: %w", workerID, batch.BatchNum, err)
 			return
 		}
+
+		batchesProcessed++
 
 		// Update progress
 		progress.mu.Lock()
@@ -885,6 +1007,7 @@ func (c *LudicrousOnlyController) ludicrousWorker(
 		progress.mu.Unlock()
 	}
 
+	// Worker completed - minimal logging
 	errorChan <- nil
 }
 
@@ -897,6 +1020,25 @@ func (c *LudicrousOnlyController) insertBatchWithRawSQLLudicrous(
 	if len(records) == 0 {
 		return nil
 	}
+	
+	// Create a transaction with timeout appropriate for 2000 records
+	txCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	
+	tx, err := sqlDB.BeginTx(txCtx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+	}()
 
 	// Simplified SQL for ludicrous speed - only essential columns
 	const baseSQL = `INSERT INTO test_data (
@@ -948,14 +1090,20 @@ func (c *LudicrousOnlyController) insertBatchWithRawSQLLudicrous(
 	// Combine SQL
 	finalSQL := baseSQL + strings.Join(valueClauses, ", ")
 
-	// Execute with context
-	_, err := sqlDB.ExecContext(ctx, finalSQL, args...)
+	// Execute with transaction context
+	_, err = tx.ExecContext(txCtx, finalSQL, args...)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf(
 			"ludicrous raw SQL batch insert failed (records: %d): %w",
 			len(records),
 			err,
 		)
+	}
+	
+	// Commit the transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -967,10 +1115,8 @@ func (c *LudicrousOnlyController) monitorLudicrousProgress(
 	testID string,
 	done <-chan bool,
 ) {
-	ticker := time.NewTicker(2 * time.Second) // Less frequent updates for better performance
-	heartbeatTicker := time.NewTicker(10 * time.Second) // Heartbeat every 10 seconds
+	ticker := time.NewTicker(2 * time.Second) // Regular progress updates
 	defer ticker.Stop()
-	defer heartbeatTicker.Stop()
 	
 	lastRecordsProcessed := 0
 	stuckCount := 0
@@ -981,9 +1127,6 @@ func (c *LudicrousOnlyController) monitorLudicrousProgress(
 			return
 		case <-ticker.C:
 			c.sendProgressUpdate(progress, testID, &lastRecordsProcessed, &stuckCount)
-		case <-heartbeatTicker.C:
-			// Send heartbeat with stall detection
-			c.sendHeartbeat(progress, testID, &lastRecordsProcessed, &stuckCount)
 		}
 	}
 }
@@ -1000,25 +1143,54 @@ func (c *LudicrousOnlyController) sendProgressUpdate(
 	defer progress.mu.RUnlock()
 
 	elapsed := time.Since(progress.StartTime)
-	overallProgress := float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
+	
+	// Safe progress calculation with validation
+	var overallProgress float64
+	if progress.TotalRecords > 0 && progress.RecordsProcessed >= 0 {
+		overallProgress = float64(progress.RecordsProcessed) / float64(progress.TotalRecords)
+		// Clamp to valid range
+		if overallProgress > 1.0 {
+			overallProgress = 1.0
+		} else if overallProgress < 0 {
+			overallProgress = 0
+		}
+	} else {
+		overallProgress = 0
+	}
+	
 	phaseProgress := overallProgress * 100
 
 	var eta string
-	if progress.RecordsProcessed > 0 && overallProgress > 0 {
+	if progress.RecordsProcessed > 0 && overallProgress > 0.01 && elapsed.Seconds() > 1 {
+		// Safe ETA calculation with bounds checking
 		totalEstimated := time.Duration(float64(elapsed) / overallProgress)
 		remaining := totalEstimated - elapsed
-		if remaining > 0 {
-			eta = fmt.Sprintf("%ds", int(remaining.Seconds()))
-		} else {
+		
+		// Ensure reasonable ETA bounds
+		if remaining > 0 && remaining < 24*time.Hour {
+			if remaining < time.Minute {
+				eta = fmt.Sprintf("%ds", int(remaining.Seconds()))
+			} else if remaining < time.Hour {
+				eta = fmt.Sprintf("%dm", int(remaining.Minutes()))
+			} else {
+				eta = fmt.Sprintf("%dh", int(remaining.Hours()))
+			}
+		} else if remaining <= 0 {
 			eta = "Almost done"
+		} else {
+			eta = "Calculating..."
 		}
 	} else {
 		eta = "Calculating..."
 	}
 
 	rowsPerSecond := 0
-	if elapsed.Seconds() > 0 {
-		rowsPerSecond = int(float64(progress.RecordsProcessed) / elapsed.Seconds())
+	if elapsed.Seconds() > 0.1 && progress.RecordsProcessed > 0 {
+		rate := float64(progress.RecordsProcessed) / elapsed.Seconds()
+		// Cap at reasonable maximum to prevent overflow or unrealistic values
+		if rate > 0 && rate < 1000000 {
+			rowsPerSecond = int(rate)
+		}
 	}
 
 	// Check for progress stalls
@@ -1050,52 +1222,7 @@ func (c *LudicrousOnlyController) sendProgressUpdate(
 	})
 }
 
-func (c *LudicrousOnlyController) sendHeartbeat(
-	progress *Progress,
-	testID string,
-	lastRecordsProcessed *int,
-	stuckCount *int,
-) {
-	log := c.log.Function("sendHeartbeat")
-	
-	progress.mu.RLock()
-	currentRecords := progress.RecordsProcessed
-	totalRecords := progress.TotalRecords
-	elapsed := time.Since(progress.StartTime)
-	progress.mu.RUnlock()
-
-	// Check if we're truly stuck
-	if currentRecords == *lastRecordsProcessed {
-		*stuckCount++
-		log.Warn("Heartbeat: No progress detected", 
-			"testID", testID, 
-			"stuckDuration", (*stuckCount)*10, 
-			"currentRecords", currentRecords)
-	} else {
-		if *stuckCount > 0 {
-			log.Info("Heartbeat: Progress resumed", "testID", testID, "currentRecords", currentRecords)
-		}
-		*stuckCount = 0
-		*lastRecordsProcessed = currentRecords
-	}
-
-	// Send heartbeat message
-	c.wsManager.SendLoadTestProgress(testID, map[string]any{
-		"phase":           "insertion",
-		"currentPhase":    "Ludicrous Speed Insertion",
-		"rowsProcessed":   currentRecords,
-		"totalRecords":    totalRecords,
-		"elapsed":         int(elapsed.Seconds()),
-		"isHeartbeat":     true,
-		"isStalled":       *stuckCount >= 3, // 30 seconds
-		"message": fmt.Sprintf(
-			"Heartbeat: Processing %d/%d records (alive for %ds)",
-			currentRecords,
-			totalRecords,
-			int(elapsed.Seconds()),
-		),
-	})
-}
+// sendHeartbeat function removed - heartbeats were causing UI issues
 
 // updateLoadTestError updates load test with error information for ludicrous speed method
 func (c *LudicrousOnlyController) updateLoadTestError(
