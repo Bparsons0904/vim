@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/google/uuid"
@@ -174,6 +175,9 @@ func GeneratePerformanceCSVWithDuplication(config CSVGenerationConfig) (CSVGener
 		config.ProgressCallback("csv_generation", 100, fmt.Sprintf("CSV generation complete: %d rows", config.Rows))
 	}
 
+	// Force garbage collection after memory-intensive duplication operations
+	runtime.GC()
+
 	totalTime := int(time.Since(startTime).Milliseconds())
 
 	return CSVGenerationResult{
@@ -184,11 +188,14 @@ func GeneratePerformanceCSVWithDuplication(config CSVGenerationConfig) (CSVGener
 
 // GeneratePerformanceCSV creates a high-performance CSV file using the fastest method
 func GeneratePerformanceCSV(config CSVGenerationConfig) (CSVGenerationResult, error) {
-	// For small files, use direct generation; for large files, use duplication optimization
-	if config.Rows <= 100000 {
-		return generateDirectCSV(config)
-	}
-	return GeneratePerformanceCSVWithDuplication(config)
+	// Always use direct generation for maximum speed - it's faster than duplication for all sizes
+	// The duplication strategy was causing performance degradation due to memory overhead
+	result, err := generateDirectCSV(config)
+	
+	// Force garbage collection after CSV generation to free memory immediately
+	runtime.GC()
+	
+	return result, err
 }
 
 // generateDirectCSV creates CSV directly without duplication (for smaller datasets)
@@ -288,6 +295,9 @@ func generateDirectCSV(config CSVGenerationConfig) (CSVGenerationResult, error) 
 	if config.ProgressCallback != nil {
 		config.ProgressCallback("csv_generation", 100, fmt.Sprintf("CSV generation complete: %d rows", config.Rows))
 	}
+
+	// Force garbage collection after direct CSV generation to free memory
+	runtime.GC()
 
 	generationTime := int(time.Since(startTime).Milliseconds())
 
@@ -579,6 +589,9 @@ func scaleCSVFileByDoublingWithProgress(ctx context.Context, basePath, finalPath
 		return 0, fmt.Errorf("failed to write scaled CSV: %w", err)
 	}
 	
+	// Force garbage collection after scaling operations to free large memory allocations
+	runtime.GC()
+	
 	return int(time.Since(startTime).Milliseconds()), nil
 }
 
@@ -651,6 +664,9 @@ func scaleCSVFileByDoubling(ctx context.Context, basePath, finalPath string, bas
 	if err != nil {
 		return 0, fmt.Errorf("failed to write scaled CSV: %w", err)
 	}
+	
+	// Force garbage collection after scaling operations to free large memory allocations
+	runtime.GC()
 	
 	return int(time.Since(startTime).Milliseconds()), nil
 }
