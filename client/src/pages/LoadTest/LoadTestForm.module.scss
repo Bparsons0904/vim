@@ -195,12 +195,19 @@
 
 .raceTrack {
   flex: 1;
-  // background: #f5f5f5;
   border-radius: $border-radius-sm;
   padding: $spacing-sm;
   position: relative;
   height: 60px;
-  overflow: hidden; // Prevent icons from going outside
+  overflow: hidden;
+  min-width: 250px; // Ensure minimum race track width on mobile
+  
+  @media (max-width: 768px) {
+    height: 100px; // Balanced height - not too much
+    min-width: 250px; // Reasonable track width
+    padding: $spacing-md; // Moderate padding
+    overflow: visible; // Allow icons to be fully visible during scaling
+  }
 }
 
 .methodHeader {
@@ -233,8 +240,15 @@
   &:hover {
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
   }
+  
+  @media (max-width: 768px) {
+    top: 45%; // Slightly higher positioning to avoid bottom cutoff
+    font-size: 1.8rem; // Slightly larger for better visibility
+    width: 2.4rem;
+    height: 2.4rem;
+  }
 
-  // Racing animation for each speed level - simple transform animation
+  // Racing animation for each speed level - responsive
   &.raceSpeed1 {
     animation: raceAcross 8s linear forwards;
   }
@@ -253,6 +267,29 @@
 
   &.raceSpeed5 {
     animation: raceAcross 1s linear forwards;
+  }
+  
+  // Use desktop animation on larger screens
+  @media (min-width: 768px) {
+    &.raceSpeed1 {
+      animation: raceAcrossDesktop 8s linear forwards;
+    }
+
+    &.raceSpeed2 {
+      animation: raceAcrossDesktop 6s linear forwards;
+    }
+
+    &.raceSpeed3 {
+      animation: raceAcrossDesktop 4s linear forwards;
+    }
+
+    &.raceSpeed4 {
+      animation: raceAcrossDesktop 2s linear forwards;
+    }
+
+    &.raceSpeed5 {
+      animation: raceAcrossDesktop 1s linear forwards;
+    }
   }
 }
 
@@ -351,8 +388,28 @@
   width: 100%;
 }
 
-// Racing animation - simple left-to-right movement
+// Racing animation - mobile version with moderate distance
 @keyframes raceAcross {
+  0% {
+    transform: translateY(-50%) translateX(0) scale(1);
+    opacity: 0.8;
+  }
+  10% {
+    transform: translateY(-50%) translateX(25px) scale(1.1);
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(-50%) translateX(220px) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-50%) translateX(220px) scale(1);
+    opacity: 0.7;
+  }
+}
+
+// Desktop racing animation - longer distance
+@keyframes raceAcrossDesktop {
   0% {
     transform: translateY(-50%) translateX(0) scale(1);
     opacity: 0.8;
