@@ -61,6 +61,67 @@
   }
 }
 
+.overallSummary {
+  margin-bottom: 2rem;
+  
+  h3 {
+    margin: 0 0 1rem 0;
+    color: var(--color-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}
+
+.overallGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  
+  @media (max-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.overallItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--color-background-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.overallLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.overallValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.methodSummaries {
+  h3 {
+    margin: 0 0 1rem 0;
+    color: var(--color-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+}
+
 .summariesGrid {
   display: flex;
   flex-direction: column;
@@ -255,6 +316,14 @@
 
   .metric {
     text-align: center;
+  }
+  
+  .overallValue {
+    font-size: 1.25rem;
+  }
+  
+  .overallItem {
+    padding: 0.75rem;
   }
 }
 

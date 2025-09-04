@@ -1,12 +1,13 @@
 import { Component, Show, For } from "solid-js";
 import { Card } from "@components/common/ui/Card/Card";
-import { PerformanceSummary as PerformanceSummaryData } from "@services/api/endpoints/loadtest.api";
+import { PerformanceSummary as PerformanceSummaryData, OverallSummary } from "@services/api/endpoints/loadtest.api";
 import styles from "./PerformanceSummary.module.scss";
 
 interface PerformanceSummaryProps {
   summaries: PerformanceSummaryData[];
   isLoading?: boolean;
   error?: Error | null;
+  overallSummary?: OverallSummary;
 }
 
 export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) => {
@@ -72,7 +73,7 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
       </Show>
 
       <Show 
-        when={!props.isLoading && !props.error && props.summaries.length > 0}
+        when={!props.isLoading && !props.error && (props.summaries.length > 0 || props.overallSummary?.testsCompleted)}
         fallback={
           <Show when={!props.isLoading && !props.error}>
             <div class={styles.emptyState}>
@@ -82,54 +83,89 @@ export const PerformanceSummary: Component<PerformanceSummaryProps> = (props) =>
           </Show>
         }
       >
-        <div class={styles.summariesGrid}>
-          <For each={props.summaries.slice().sort((a, b) => b.avgRowsPerSec - a.avgRowsPerSec)}>
-            {(summary) => (
-              <div class={styles.summaryCard}>
-                <div class={styles.summaryHeader}>
-                  <div class={styles.methodName}>
-                    <span 
-                      class={styles.methodIcon}
-                      style={{ 'background-color': getMethodColor(summary.method) }}
-                    />
-                    {getMethodDisplayName(summary.method)}
-                  </div>
-                  <div class={styles.testCount}>
-                    {summary.testCount} test{summary.testCount !== 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                <div class={styles.metricsLayout}>
-                  <div class={styles.primaryMetric}>
-                    <span class={styles.primaryLabel}>Average Throughput</span>
-                    <div class={styles.primaryValueContainer}>
-                      <span class={styles.primaryValue}>
-                        {formatNumber(summary.avgRowsPerSec)}
-                      </span>
-                      <span class={styles.primaryUnit}>rows/sec</span>
-                    </div>
-                  </div>
-
-                  <div class={styles.secondaryMetrics}>
-                    <div class={styles.metric}>
-                      <span class={styles.metricLabel}>Max</span>
-                      <span class={styles.metricValue}>
-                        {formatNumber(summary.maxRowsPerSec)} rows/sec
-                      </span>
-                    </div>
-
-                    <div class={styles.metric}>
-                      <span class={styles.metricLabel}>Min</span>
-                      <span class={styles.metricValue}>
-                        {formatNumber(summary.minRowsPerSec)} rows/sec
-                      </span>
-                    </div>
-                  </div>
-                </div>
+        {/* Overall Summary Section */}
+        <Show when={props.overallSummary?.testsCompleted && props.overallSummary.testsCompleted > 0}>
+          <div class={styles.overallSummary}>
+            <h3>Overall Statistics</h3>
+            <div class={styles.overallGrid}>
+              <div class={styles.overallItem}>
+                <span class={styles.overallLabel}>Tests Completed</span>
+                <span class={styles.overallValue}>{props.overallSummary!.testsCompleted}</span>
               </div>
-            )}
-          </For>
-        </div>
+              <div class={styles.overallItem}>
+                <span class={styles.overallLabel}>Best Performance</span>
+                <span class={styles.overallValue}>
+                  {formatNumber(props.overallSummary!.bestPerformanceRate)} rows/sec
+                </span>
+              </div>
+              <div class={styles.overallItem}>
+                <span class={styles.overallLabel}>Average Rate</span>
+                <span class={styles.overallValue}>
+                  {formatNumber(props.overallSummary!.averageRate)} rows/sec
+                </span>
+              </div>
+              <div class={styles.overallItem}>
+                <span class={styles.overallLabel}>Total Rows</span>
+                <span class={styles.overallValue}>{props.overallSummary!.totalRowsMillions.toFixed(1)}M</span>
+              </div>
+            </div>
+          </div>
+        </Show>
+
+        {/* Method-specific Performance Summary */}
+        <Show when={props.summaries.length > 0}>
+          <div class={styles.methodSummaries}>
+            <h3>Performance by Method</h3>
+            <div class={styles.summariesGrid}>
+              <For each={props.summaries.slice().sort((a, b) => b.avgRowsPerSec - a.avgRowsPerSec)}>
+                {(summary) => (
+                  <div class={styles.summaryCard}>
+                    <div class={styles.summaryHeader}>
+                      <div class={styles.methodName}>
+                        <span 
+                          class={styles.methodIcon}
+                          style={{ 'background-color': getMethodColor(summary.method) }}
+                        />
+                        {getMethodDisplayName(summary.method)}
+                      </div>
+                      <div class={styles.testCount}>
+                        {summary.testCount} test{summary.testCount !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+
+                    <div class={styles.metricsLayout}>
+                      <div class={styles.primaryMetric}>
+                        <span class={styles.primaryLabel}>Average Throughput</span>
+                        <div class={styles.primaryValueContainer}>
+                          <span class={styles.primaryValue}>
+                            {formatNumber(summary.avgRowsPerSec)}
+                          </span>
+                          <span class={styles.primaryUnit}>rows/sec</span>
+                        </div>
+                      </div>
+
+                      <div class={styles.secondaryMetrics}>
+                        <div class={styles.metric}>
+                          <span class={styles.metricLabel}>Max</span>
+                          <span class={styles.metricValue}>
+                            {formatNumber(summary.maxRowsPerSec)} rows/sec
+                          </span>
+                        </div>
+
+                        <div class={styles.metric}>
+                          <span class={styles.metricLabel}>Min</span>
+                          <span class={styles.metricValue}>
+                            {formatNumber(summary.minRowsPerSec)} rows/sec
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
       </Show>
     </Card>
   );

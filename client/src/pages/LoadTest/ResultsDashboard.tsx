@@ -180,42 +180,11 @@ export const ResultsDashboard: Component<ResultsDashboardProps> = (props) => {
       </Show>
 
       {/* Performance Summary */}
-      <Show when={overallSummaryQuery.data?.overallSummary && overallSummaryQuery.data.overallSummary.testsCompleted > 0}>
-        <Card class={styles.summaryCard}>
-          <h2>Performance Summary</h2>
-          <div class={styles.summaryGrid}>
-            <div class={styles.summaryItem}>
-              <h3>Tests Completed</h3>
-              <div class={styles.summaryValue}>{overallSummaryQuery.data!.overallSummary.testsCompleted}</div>
-            </div>
-            
-            <div class={styles.summaryItem}>
-              <h3>Best Performance</h3>
-              <div class={styles.summaryValue}>
-                {overallSummaryQuery.data!.overallSummary.bestPerformanceRate.toLocaleString()} rows/sec
-              </div>
-            </div>
-            
-            <div class={styles.summaryItem}>
-              <h3>Average Rate</h3>
-              <div class={styles.summaryValue}>
-                {overallSummaryQuery.data!.overallSummary.averageRate.toLocaleString()} rows/sec
-              </div>
-            </div>
-            
-            <div class={styles.summaryItem}>
-              <h3>Total Rows</h3>
-              <div class={styles.summaryValue}>{overallSummaryQuery.data!.overallSummary.totalRowsMillions.toFixed(1)}M</div>
-            </div>
-          </div>
-        </Card>
-      </Show>
-
-      {/* Performance Summary */}
       <PerformanceSummaryComponent 
         summaries={performanceSummaryQuery.data?.performanceSummary || []}
         isLoading={performanceSummaryQuery.isLoading}
         error={performanceSummaryQuery.error}
+        overallSummary={overallSummaryQuery.data?.overallSummary}
       />
 
       {/* Test History */}

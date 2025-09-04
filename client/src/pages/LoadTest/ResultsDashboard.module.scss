@@ -35,6 +35,14 @@
   padding: $spacing-md;
   background: $bg-subtle;
   border-radius: $border-radius-md;
+  
+  // Stack vertically on mobile
+  @media (max-width: $breakpoint-sm - 1) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    padding: $spacing-sm;
+  }
 }
 
 .testStatus {
@@ -67,6 +75,12 @@
   display: flex;
   gap: $spacing-lg;
   padding: $spacing-sm 0;
+  
+  // Stack vertically on mobile
+  @media (max-width: $breakpoint-sm - 1) {
+    flex-direction: column;
+    gap: $spacing-sm;
+  }
 }
 
 .testDetail {
@@ -96,6 +110,17 @@
   padding: $spacing-md;
   background: $bg-subtle;
   border-radius: $border-radius-md;
+  
+  // Better mobile layout
+  @media (max-width: $breakpoint-sm - 1) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-sm;
+    padding: $spacing-sm;
+  }
+  
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .metric {
@@ -132,6 +157,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: $spacing-md;
+  
+  // Better mobile layout
+  @media (max-width: $breakpoint-sm - 1) {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
+  
+  @media (max-width: $breakpoint-md - 1) and (min-width: $breakpoint-sm) {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
 }
 
 .summaryItem {
@@ -245,6 +280,13 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: $spacing-sm;
+  
+  // Better mobile layout
+  @media (max-width: $breakpoint-sm - 1) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $spacing-xs;
+  }
 }
 
 .historyTitle {
@@ -273,6 +315,17 @@
   
   span {
     white-space: nowrap;
+  }
+  
+  // Improve mobile layout
+  @media (max-width: $breakpoint-sm - 1) {
+    gap: $spacing-sm;
+    font-size: $font-size-xs;
+    
+    span {
+      white-space: normal; // Allow wrapping on mobile
+      word-break: break-word;
+    }
   }
 }
 

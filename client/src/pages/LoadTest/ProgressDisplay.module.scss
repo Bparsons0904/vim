@@ -73,6 +73,17 @@
   padding: $spacing-md;
   background: $bg-subtle;
   border-radius: $border-radius-md;
+  
+  // Better mobile layout
+  @media (max-width: $breakpoint-sm - 1) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-sm;
+    padding: $spacing-sm;
+  }
+  
+  @media (max-width: 360px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .metric {
@@ -101,6 +112,14 @@
   align-items: center;
   padding: $spacing-md 0;
   gap: 0;
+  
+  // Stack timeline vertically on very small screens
+  @media (max-width: $breakpoint-sm - 1) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-sm;
+    padding: $spacing-sm 0;
+  }
 }
 
 .timelineItem {
@@ -145,6 +164,14 @@
   &.completed {
     background: $color-success-500;
   }
+  
+  // Vertical connector on mobile
+  @media (max-width: $breakpoint-sm - 1) {
+    width: 2px;
+    height: $spacing-md;
+    margin: 0;
+    align-self: center;
+  }
 }
 
 .timelineIcon {
@@ -177,6 +204,19 @@
     color: $text-light;
     margin: 0;
     line-height: 1.3;
+  }
+  
+  // Left align text on mobile
+  @media (max-width: $breakpoint-sm - 1) {
+    text-align: left;
+    
+    h4 {
+      font-size: $font-size-xs;
+    }
+    
+    p {
+      font-size: 0.6875rem; // Even smaller on mobile
+    }
   }
 }
 
