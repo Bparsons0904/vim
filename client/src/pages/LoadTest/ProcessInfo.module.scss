@@ -3,6 +3,9 @@
 @use "../../styles/mixins" as *;
 
 .processInfoCard {
+  width: 100%;
+  margin-bottom: $spacing-xl;
+  
   h2 {
     margin-bottom: $spacing-lg;
     font-size: $font-size-xl;

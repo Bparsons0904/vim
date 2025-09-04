@@ -9,9 +9,15 @@
 }
 
 .container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0 $spacing-lg;
+  width: 100%;
+  box-sizing: border-box;
+  
+  @media (max-width: 768px) {
+    padding: 0 $spacing-md;
+  }
 }
 
 .header {
@@ -35,24 +41,27 @@
 
 .content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: $spacing-xl;
+  grid-template-columns: 1fr;
+  gap: $spacing-lg;
   margin-top: $spacing-xl;
-
-  @include breakpoint(md) {
-    grid-template-columns: 1fr;
-    gap: $spacing-lg;
-  }
+  width: 100%;
+  max-width: 100%;
 }
 
 .leftColumn {
   display: flex;
   flex-direction: column;
   gap: $spacing-lg;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .rightColumn {
   display: flex;
   flex-direction: column;
   gap: $spacing-lg;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
